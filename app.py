@@ -1,65 +1,29 @@
 import streamlit as st
 
-# --- CONFIGURACIÓN DE PÁGINA ---
+# --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(layout="wide")
 
-# --- CSS DEFINITIVO Y CORRECTO ---
-css_final = """
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+# --- 2. CSS MÍNIMO Y EFECTIVO ---
+# Este CSS solo hace tres cosas: poner el fondo blanco, ocultar
+# elementos innecesarios y estilizar el botón. Nada más.
+css_simple = """
+    /* Fondo blanco para toda la app */
+    .stApp {
+        background-color: white;
+    }
 
-    /* Ocultar elementos de Streamlit que no queremos */
+    /* Ocultar la cabecera y el pie de página de Streamlit */
     .stApp > header, #MainMenu, footer {
         visibility: hidden;
     }
 
-    /* Fondo general de la aplicación */
-    .stApp {
-        background-color: #f0f2f6;
-        font-family: 'Montserrat', sans-serif;
-    }
-    
-    /* LA CLAVE: Estilo completo para la tarjeta con CENTRADO FLEXBOX */
-    [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
-        /* Estilo visual de la tarjeta */
-        background-color: white;
-        border: none;
-        padding: 40px;
-        border-radius: 15px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        margin-top: 4rem;
-        
-        /* LA LÓGICA DE CENTRADO DEFINITIVA */
-        display: flex;
-        flex-direction: column;  /* Apila los elementos verticalmente */
-        align-items: center;     /* Centra todo horizontalmente */
-        gap: 20px;               /* Espacio uniforme entre elementos */
-    }
-    
-    /* Estilos para el texto y el botón */
-    .title {
-        color: #1E3A5F;
-        font-weight: 700;
-        font-size: clamp(1.8rem, 4vw, 2.5rem);
-        letter-spacing: -1px;
-        line-height: 1.2;
-        margin: 0;
-        text-align: center;
-    }
-    
-    .description {
-        color: #555;
-        font-size: clamp(1rem, 2.5vw, 1.1rem);
-        line-height: 1.6;
-        margin: 0;
-        text-align: center;
-    }
-
+    /* Estilo profesional para el botón */
     .stButton>button {
         background-color: #0056b3;
         color: white;
         font-weight: 600;
-        font-size: 1em;
-        padding: 12px 30px;
+        font-size: 1.1em;
+        padding: 12px 35px;
         border: none;
         border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0, 86, 179, 0.2);
@@ -69,30 +33,46 @@ css_final = """
     .stButton>button:hover {
         background-color: #004494;
         transform: scale(1.05);
-        box-shadow: 0 6px 15px rgba(0, 86, 179, 0.3);
     }
 """
-st.markdown(f"<style>{css_final}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>{css_simple}</style>", unsafe_allow_html=True)
 
-# --- LAYOUT CON COLUMNAS PARA CENTRADO HORIZONTAL DE LA TARJETA ---
-col1, col2, col3 = st.columns([1, 2, 1])
+# --- 3. LAYOUT CENTRADO ---
+# Usamos columnas para crear un espacio central donde vivirá todo nuestro contenido.
+# Esta es la forma correcta y más robusta de centrar en Streamlit.
+_ , col2, _ = st.columns([1, 2, 1])
 
 with col2:
-    # Creamos el contenedor nativo. El CSS de arriba lo convierte en la tarjeta
-    # y centra TODO su contenido gracias a Flexbox.
-    with st.container(border=True):
-
+    # --- 4. CONTENIDO DE LA PÁGINA ---
+    
+    # LOGO CENTRADO
+    try:
         st.image('imagen.png', width=150)
+    except Exception:
+        st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
 
-        st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+    # TÍTULO GRANDE Y CENTRADO
+    st.markdown("<h1 style='text-align: center; color: #1E3A5F;'>AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>", unsafe_allow_html=True)
+    
+    # Párrafo de espacio
+    st.write("") 
 
-        st.markdown("""
-            <p class="description">
-                Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
-                <br>
-                Haz clic en <b>Comenzar</b> para iniciar el proceso.
-            </p>
-        """, unsafe_allow_html=True)
+    # DESCRIPCIÓN CENTRADA
+    st.markdown("""
+    <p style='text-align: center; font-size: 1.1em; color: #555;'>
+        Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
+        <br>
+        Haz clic en <b>Comenzar</b> para iniciar el proceso.
+    </p>
+    """, unsafe_allow_html=True)
+    
+    # Párrafo de espacio
+    st.write("")
+    st.write("")
 
+    # BOTÓN CENTRADO
+    # Usamos un sub-layout de columnas solo para el botón, para asegurar su centrado perfecto.
+    _ , btn_col, _ = st.columns([1, 1, 1])
+    with btn_col:
         if st.button("Comenzar"):
             st.success("¡Proceso iniciado!")
