@@ -187,20 +187,43 @@ def extraer_texto_de_archivo(archivo_subido):
     return texto_completo
 
 def mostrar_resultado_analisis(data):
+    """
+    Muestra la estructura del análisis usando expanders para una vista más limpia.
+    Los apartados principales son visibles y los subapartados están dentro de cada desplegable.
+    """
     if not data:
         st.error("No se pudo generar el análisis.")
         return
+
     st.subheader("Estructura de Apartados Propuesta")
     st.markdown("---")
+
+    # Bucle para crear un expander por cada apartado principal
     for seccion in data.get("estructura_memoria", []):
-        st.markdown(f"**{seccion.get('apartado', 'Sin Título')}**")
-        with st.container():
-            for sub in seccion.get("subapartados", []):
-                texto_limpio = sub.lstrip('- ')
-                # Contamos los puntos para determinar el nivel de sangría
-                nivel = texto_limpio.count('.')
-                sangria = 15 + (nivel * 20) # 15px base + 20px por cada nivel
-                st.markdown(f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
+        apartado_principal = seccion.get('apartado', 'Sin Título')
+
+        # Usamos st.expander para crear la sección desplegable
+        with st.expander(f"**{apartado_principal}**"):
+            
+            subapartados = seccion.get("subapartados", [])
+            
+            # Si no hay subapartados, mostramos un mensaje
+            if not subapartados:
+                st.write("*No se encontraron subapartados para esta sección.*")
+            else:
+                # Si hay subapartados, los mostramos como una lista dentro del expander
+                for sub in subapartados:
+                    texto_limpio = sub.lstrip('- ')
+                    
+                    # Contamos los puntos para saber el nivel de anidación (ej: 1.1 vs 1.1.1)
+                    # Esto nos permite crear una sangría visual para la jerarquía.
+                    nivel = texto_limpio.count('.')
+                    sangria = (nivel - 1) * 25 if nivel > 0 else 0 # 0px para nivel 1, 25px para nivel 2, etc.
+                    
+                    st.markdown(
+                        f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", 
+                        unsafe_allow_html=True
+                    )
 
 # --- 3. MANEJO DE ESTADO DE SESIÓN ---
 if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
