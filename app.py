@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(layout="wide")
@@ -17,7 +16,7 @@ css_simple = """
     }
 
     /* Estilo profesional para el botón */
-    .stButton > button {
+    .stButton>button {
         background-color: #0056b3;
         color: white;
         font-weight: 600;
@@ -29,68 +28,50 @@ css_simple = """
         transition: all 0.3s ease;
     }
 
-    .stButton > button:hover {
+    .stButton>button:hover {
         background-color: #004494;
         transform: scale(1.05);
-    }
-    
-    /* Centrado del contenido principal */
-    .content-container {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        width: 100%;
-        text-align: center;
-    }
-
-    /* Estilo para el título */
-    .title-h1 {
-        font-family: 'Montserrat', sans-serif;
-        color: #1E3A5F;
-        font-size: 2.5em;
-        font-weight: bold;
-        margin-top: 0;
-        margin-bottom: 0.5em;
     }
 """
 st.markdown(f"<style>{css_simple}</style>", unsafe_allow_html=True)
 
-# --- LAYOUT CENTRADO CON CONTENEDOR ---
-_, col2, _ = st.columns([1, 2, 1])
+# --- 3. LAYOUT CENTRADO ---
+# Usamos columnas para crear un espacio central donde vivirá todo nuestro contenido.
+_ , col2, _ = st.columns([1, 2, 1])
 
 with col2:
-    with st.container():
-        # Contenedor que centra el contenido en la columna
-        st.markdown('<div class="content-container">', unsafe_allow_html=True)
-        
-        # LOGO CENTRADO
-        _, logo_col, _ = st.columns([1, 1, 1])
-        with logo_col:
-            try:
-                st.image('imagen.png', width=150)
-            except Exception:
-                st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
+    # --- 4. CONTENIDO DE LA PÁGINA ---
+    
+    # === LA CORRECCIÓN ESTÁ AQUÍ ===
+    # LOGO CENTRADO USANDO COLUMNAS
+    _ , logo_col, _ = st.columns([1, 1, 1])
+    with logo_col:
+        try:
+            st.image('imagen.png', width=150)
+        except Exception:
+            st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
 
-        # TÍTULO GRANDE Y CENTRADO
-        st.markdown("<h1 class='title-h1'>AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>", unsafe_allow_html=True)
-        st.write("")  # Espacio
+    # TÍTULO GRANDE Y CENTRADO
+    st.markdown("<h1 style='text-align: center; color: #1E3A5F;'>AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>", unsafe_allow_html=True)
+    
+    # Párrafo de espacio
+    st.write("") 
 
-        # DESCRIPCIÓN CENTRADA
-        st.markdown("""
-        <p style='text-align: center; font-size: 1.1em; color: #555;'>
-            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
-            <br>
-            Haz clic en <b>Comenzar</b> para iniciar el proceso.
-        </p>
-        """, unsafe_allow_html=True)
-        st.write("") # Espacio
-        
-        # BOTÓN CENTRADO
-        _, btn_col, _ = st.columns([1, 1, 1])
-        with btn_col:
-            if st.button("Comenzar"):
-                st.success("¡Proceso iniciado!")
+    # DESCRIPCIÓN CENTRADA
+    st.markdown("""
+    <p style='text-align: center; font-size: 1.1em; color: #555;'>
+        Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
+        <br>
+        Haz clic en <b>Comenzar</b> para iniciar el proceso.
+    </p>
+    """, unsafe_allow_html=True)
+    
+    # Párrafo de espacio
+    st.write("")
+    st.write("")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    # BOTÓN CENTRADO
+    _ , btn_col, _ = st.columns([1, 1, 1])
+    with btn_col:
+        if st.button("Comenzar"):
+            st.success("¡Proceso iniciado!")
