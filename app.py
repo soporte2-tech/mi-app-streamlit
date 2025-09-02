@@ -103,6 +103,58 @@ Debes explicar todo como si el que fuera a leer las indicaciones no supiera nada
   ]
 }
 """
+PROMPT_GENERAR_LISTA_PREGUNTAS = """
+Actúa como un consultor experto en licitaciones. Te proporcionaré una estructura de memoria técnica detallada con apartados, subapartados y matices (indicaciones) extraídos de unos pliegos.
+
+Tu única tarea es convertir esta información en una lista de preguntas claras y concisas para un cliente. El objetivo es recopilar de él toda la información necesaria para poder redactar la memoria técnica y obtener la máxima puntuación.
+
+REGLAS:
+1.  Para cada subapartado relevante de la estructura, genera una o más preguntas que extraigan la información clave mencionada en las "indicaciones".
+2.  Las preguntas deben ser directas y fáciles de entender para alguien que no es experto en licitaciones. Evita la jerga técnica siempre que sea posible.
+3.  Tu respuesta DEBE ser un único objeto JSON válido.
+4.  El JSON debe contener una única clave: "cuestionario".
+5.  El valor de "cuestionario" será una lista de objetos. Cada objeto tendrá dos claves: "apartado_referencia" (el título del subapartado) y "pregunta" (la pregunta que has generado).
+
+EJEMPLO DE ENTRADA QUE RECIBIRÁS (FRAGMENTO):
+...
+"matices_desarrollo": [
+    {
+      "apartado": "1. MEMORIA TÉCNICA",
+      "subapartado": "1.1. Metodología",
+      "indicaciones": "El subapartado debe durar 5 páginas. Debe describir nuestra metodología de trabajo, incluyendo las fases del proyecto, las herramientas que usaremos y cómo aseguraremos la calidad..."
+    }
+]
+...
+
+EJEMPLO DE SALIDA OBLIGATORIA (FRAGMENTO):
+{
+  "cuestionario": [
+    {
+      "apartado_referencia": "1.1. Metodología",
+      "pregunta": "Por favor, describe paso a paso la metodología de trabajo que propondremos para este proyecto. ¿Cuáles son las fases principales?"
+    },
+    {
+      "apartado_referencia": "1.1. Metodología",
+      "pregunta": "¿Qué herramientas o software específicos utilizaremos para llevar a cabo el trabajo y por qué son las mejores para este caso?"
+    }
+  ]
+}
+"""
+
+# --- Añádelo a tu bloque de CSS ---
+
+css_profesional = """
+    /* ... tu CSS existente ... */
+
+    .question-box {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    }
+"""
 PROMPT_PLIEGOS = """
 Eres un consultor experto en licitaciones y tu conocimiento se basa ÚNICAMENTE en los archivos que te he proporcionado.
 Tu misión es analizar los Pliegos y proponer una estructura para la memoria técnica que responda a todos los requisitos y criterios de valoración.
@@ -228,14 +280,21 @@ def mostrar_resultado_analisis(data):
 # --- 3. MANEJO DE ESTADO DE SESIÓN ---
 if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
 if 'analisis_resultado' not in st.session_state: st.session_state.analisis_resultado = None
+if 'cuestionario' not in st.session_state: st.session_state.cuestionario = None
+if 'pregunta_idx' not in st.session_state: st.session_state.pregunta_idx = 0
 def ir_a_fase0():
     st.session_state.pagina_actual = 'fase0'
     st.session_state.analisis_resultado = None
+    st.session_state.cuestionario = None
+    st.session_state.pregunta_idx = 0
 def ir_al_inicio():
     st.session_state.pagina_actual = 'inicio'
     st.session_state.analisis_resultado = None
+    st.session_state.cuestionario = None
+    st.session_state.pregunta_idx = 0
 def ir_a_fase1():
-    st.session_state.pagina_actual = 'fase1' # Función para la siguiente fase
+    st.session_state.pagina_actual = 'fase1'
+    st.session_state.pregunta_idx = 0 # Reiniciar el índice al entrar en la fase
 
 # --- 4. DEFINICIÓN DE LAS PÁGINAS ---
 def pagina_inicio():
@@ -326,12 +385,106 @@ def pagina_fase0():
             st.button("Continuar a la Fase 1", on_click=ir_a_fase1, use_container_width=True)
 
     st.button("Volver al Inicio", on_click=ir_al_inicio)
+    
+def pagina_fase1():
+    st.title("Fase 1: Recopilación de Información")
+
+    # Si aún no hemos generado el cuestionario, mostramos el botón para hacerlo
+    if st.session_state.cuestionario is None:
+        st.info("El siguiente paso es generar un cuestionario basado en la estructura analizada. La IA creará preguntas específicas para recopilar la información necesaria del cliente.")
+        
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            if st.button("Generar Cuestionario Estratégico", use_container_width=True):
+                with st.spinner("La IA está preparando las preguntas..."):
+                    try:
+                        api_key = st.secrets["GEMINI_API_KEY"]
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-1.5-flash') # Flash es ideal para esta tarea rápida
+
+                        # Preparamos el contenido para la IA: el prompt + el análisis JSON de la fase 0
+                        analisis_previo = st.session_state.analisis_resultado
+                        contenido_ia = [
+                            PROMPT_GENERAR_LISTA_PREGUNTAS,
+                            "Aquí está la estructura y los matices generados previamente:",
+                            json.dumps(analisis_previo)
+                        ]
+
+                        response = model.generate_content(
+                            contenido_ia,
+                            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+                        )
+
+                        json_limpio_str = limpiar_respuesta_json(response.text)
+                        if json_limpio_str:
+                            cuestionario_data = json.loads(json_limpio_str).get("cuestionario", [])
+                            # Añadimos un campo 'respuesta' vacío a cada pregunta
+                            for q in cuestionario_data:
+                                q['respuesta'] = ''
+                            st.session_state.cuestionario = cuestionario_data
+                            st.session_state.pregunta_idx = 0
+                            st.rerun() # Volvemos a cargar la página para mostrar la primera pregunta
+                        else:
+                            st.error("La IA no pudo generar el cuestionario. Inténtalo de nuevo.")
+
+                    except Exception as e:
+                        st.error(f"Ocurrió un error: {e}")
+    
+    # Si ya tenemos el cuestionario, mostramos la pregunta actual
+    else:
+        cuestionario = st.session_state.cuestionario
+        idx = st.session_state.pregunta_idx
+        pregunta_actual = cuestionario[idx]
+
+        # Barra de progreso
+        total_preguntas = len(cuestionario)
+        st.progress((idx + 1) / total_preguntas, text=f"Pregunta {idx + 1} de {total_preguntas}")
+
+        # El "cuadrado bonito" para la pregunta
+        with st.container():
+            st.markdown('<div class="question-box">', unsafe_allow_html=True)
+            st.subheader(f"Referente a: {pregunta_actual['apartado_referencia']}")
+            st.write(pregunta_actual['pregunta'])
+            
+            # El text_area para la respuesta. La clave es única para cada pregunta.
+            respuesta = st.text_area(
+                "Respuesta del cliente:", 
+                value=pregunta_actual['respuesta'], 
+                height=200,
+                key=f"respuesta_{idx}"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Guardamos la respuesta actual en el estado de sesión
+        st.session_state.cuestionario[idx]['respuesta'] = respuesta
+
+        # Botones de navegación
+        col1, col2, col3 = st.columns([1, 1, 1])
+
+        with col1:
+            if idx > 0:
+                if st.button("⬅️ Anterior"):
+                    st.session_state.pregunta_idx -= 1
+                    st.rerun()
+        
+        with col3:
+            if idx < total_preguntas - 1:
+                if st.button("Siguiente ➡️"):
+                    st.session_state.pregunta_idx += 1
+                    st.rerun()
+            else:
+                if st.button("✅ Finalizar Cuestionario"):
+                    # Aquí iría la lógica para pasar a la Fase 2
+                    st.success("¡Cuestionario completado! Todas las respuestas han sido guardadas.")
+                    # st.session_state.pagina_actual = 'fase2'
+                    # st.rerun()
+    
+    st.button("Volver al Inicio", on_click=ir_al_inicio)
 
 # --- 5. ROUTER PRINCIPAL DE LA APLICACIÓN ---
 if st.session_state.pagina_actual == 'inicio':
     pagina_inicio()
 elif st.session_state.pagina_actual == 'fase0':
     pagina_fase0()
-# Aquí puedes añadir la lógica para la Fase 1
-# elif st.session_state.pagina_actual == 'fase1':
-#     pagina_fase1() 
+elif st.session_state.pagina_actual == 'fase1':
+    pagina_fase1()
