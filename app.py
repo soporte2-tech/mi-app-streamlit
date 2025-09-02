@@ -197,7 +197,10 @@ def mostrar_resultado_analisis(data):
         with st.container():
             for sub in seccion.get("subapartados", []):
                 texto_limpio = sub.lstrip('- ')
-                st.markdown(f"<div style='margin-left: 30px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
+                # Contamos los puntos para determinar el nivel de sangría
+                nivel = texto_limpio.count('.')
+                sangria = 15 + (nivel * 20) # 15px base + 20px por cada nivel
+                st.markdown(f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
 
 # --- 3. MANEJO DE ESTADO DE SESIÓN ---
 if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
@@ -208,6 +211,8 @@ def ir_a_fase0():
 def ir_al_inicio():
     st.session_state.pagina_actual = 'inicio'
     st.session_state.analisis_resultado = None
+def ir_a_fase1():
+    st.session_state.pagina_actual = 'fase1' # Función para la siguiente fase
 
 # --- 4. DEFINICIÓN DE LAS PÁGINAS ---
 def pagina_inicio():
@@ -246,7 +251,7 @@ def pagina_fase0():
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-flash') # Usamos PRO para la mejor calidad de análisis jerárquico
+                        model = genai.GenerativeModel('gemini-1.5-flash')
 
                         prompt_a_usar = PROMPT_PLANTILLA if plantilla_file else PROMPT_PLIEGOS
                         contenido_ia = [prompt_a_usar]
@@ -270,7 +275,6 @@ def pagina_fase0():
                         st.info("La IA está generando la estructura completa. Por favor, ten paciencia...")
                         generation_config = genai.GenerationConfig(response_mime_type="application/json", max_output_tokens=8192)
                         
-                        # CAMBIO CLAVE: Timeout extendido a 10 minutos para prevenir cortes de conexión
                         response = model.generate_content(
                             contenido_ia,
                             generation_config=generation_config,
@@ -294,8 +298,10 @@ def pagina_fase0():
         st.header("📑 Estructura Sugerida del Análisis")
         mostrar_resultado_analisis(st.session_state.analisis_resultado)
         st.markdown("---")
-        # Aquí puedes añadir el botón para ir a la siguiente fase
-        st.button("Continuar a la Fase 1", key="continuar_fase1") # Ejemplo
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            st.button("Continuar a la Fase 1", on_click=ir_a_fase1, use_container_width=True)
+
     st.button("Volver al Inicio", on_click=ir_al_inicio)
 
 # --- 5. ROUTER PRINCIPAL DE LA APLICACIÓN ---
@@ -303,3 +309,6 @@ if st.session_state.pagina_actual == 'inicio':
     pagina_inicio()
 elif st.session_state.pagina_actual == 'fase0':
     pagina_fase0()
+# Aquí puedes añadir la lógica para la Fase 1
+# elif st.session_state.pagina_actual == 'fase1':
+#     pagina_fase1() 
