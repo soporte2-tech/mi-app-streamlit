@@ -375,7 +375,7 @@ def pagina_fase2():
                 with st.spinner("Paso 1 de 2: Generando plan de contenidos..."):
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]; genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-pro')
+                        model = genai.GenerativeModel('gemini-1.5-flash')
                         analisis = st.session_state.analisis_resultado
                         referencias_archivos = st.session_state.referencias_archivos
                         respuestas_cliente = st.session_state.get('cuestionario', [])
