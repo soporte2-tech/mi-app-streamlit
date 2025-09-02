@@ -469,7 +469,7 @@ def pagina_fase1():
 
                         analisis_previo = st.session_state.analisis_resultado
                         contenido_ia = [
-                            PROMPT_GENERAR_LISTA_PREGUNTAS, # <-- Necesitas tener este prompt definido
+                            PROMPT_GENERAR_LISTA_PREGUNTAS,
                             "Aquí está la estructura y los matices generados previamente:",
                             json.dumps(analisis_previo)
                         ]
@@ -521,13 +521,15 @@ def pagina_fase1():
                     st.session_state.pregunta_idx += 1
                     st.rerun()
             else:
-                if st.button("✅ Finalizar y Continuar a la Redacción", on_click=ir_a_fase2):
-                    st.success("¡Cuestionario completado! Pasando a la fase final...")
-                    time.sleep(2)
-                    st.rerun()
+                # --- INICIO DE LA CORRECCIÓN ---
+                # Quitamos el 'if' y dejamos solo el botón con el callback 'on_click'
+                st.button(
+                    "✅ Finalizar y Continuar a la Redacción",
+                    on_click=ir_a_fase2
+                )
+                # --- FIN DE LA CORRECCIÓN ---
     
     st.button("Volver al Inicio", on_click=ir_al_inicio)
-
 
 def pagina_fase2():
     st.title("Fase Final: Redacción del Documento")
