@@ -3,54 +3,57 @@ import streamlit as st
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide")
 
-# --- CSS DEFINITIVO ---
+# --- CSS DEFINITIVO Y CORRECTO ---
 css_final = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
-    /* Ocultar elementos de Streamlit */
+    /* Ocultar elementos de Streamlit que no queremos */
     .stApp > header, #MainMenu, footer {
         visibility: hidden;
     }
 
-    /* Fondo general */
+    /* Fondo general de la aplicación */
     .stApp {
         background-color: #f0f2f6;
         font-family: 'Montserrat', sans-serif;
     }
-
-    /* CONTENEDOR TARJETA */
-    .card {
+    
+    /* LA CLAVE: Estilo completo para la tarjeta con CENTRADO FLEXBOX */
+    [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
+        /* Estilo visual de la tarjeta */
         background-color: white;
-        border-radius: 15px;
+        border: none;
         padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         margin-top: 4rem;
-        text-align: center;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        
+        /* LA LÓGICA DE CENTRADO DEFINITIVA */
+        display: flex;
+        flex-direction: column;  /* Apila los elementos verticalmente */
+        align-items: center;     /* Centra todo horizontalmente */
+        gap: 20px;               /* Espacio uniforme entre elementos */
     }
-
-    /* Logo centrado */
-    .card img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    /* Título */
+    
+    /* Estilos para el texto y el botón */
     .title {
         color: #1E3A5F;
         font-weight: 700;
         font-size: clamp(1.8rem, 4vw, 2.5rem);
-        margin: 20px 0;
+        letter-spacing: -1px;
+        line-height: 1.2;
+        margin: 0;
+        text-align: center;
     }
-
-    /* Descripción */
+    
     .description {
         color: #555;
         font-size: clamp(1rem, 2.5vw, 1.1rem);
-        margin-bottom: 30px;
+        line-height: 1.6;
+        margin: 0;
+        text-align: center;
     }
 
-    /* Botón */
     .stButton>button {
         background-color: #0056b3;
         color: white;
@@ -61,9 +64,8 @@ css_final = """
         border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0, 86, 179, 0.2);
         transition: all 0.3s ease;
-        margin: auto; /* centra horizontalmente */
-        display: block; /* hace que respete el centrado */
     }
+
     .stButton>button:hover {
         background-color: #004494;
         transform: scale(1.05);
@@ -72,30 +74,25 @@ css_final = """
 """
 st.markdown(f"<style>{css_final}</style>", unsafe_allow_html=True)
 
-# --- LAYOUT ---
+# --- LAYOUT CON COLUMNAS PARA CENTRADO HORIZONTAL DE LA TARJETA ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    # Creamos el contenedor nativo. El CSS de arriba lo convierte en la tarjeta
+    # y centra TODO su contenido gracias a Flexbox.
+    with st.container(border=True):
 
-    # LOGO
-    st.image("imagen.png", width=150)
+        st.image('imagen.png', width=150)
 
+        st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
 
-    # TÍTULO
-    st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+        st.markdown("""
+            <p class="description">
+                Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
+                <br>
+                Haz clic en <b>Comenzar</b> para iniciar el proceso.
+            </p>
+        """, unsafe_allow_html=True)
 
-    # DESCRIPCIÓN
-    st.markdown("""
-        <p class="description">
-            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
-            <br>
-            Haz clic en <b>Comenzar</b> para iniciar el proceso.
-        </p>
-    """, unsafe_allow_html=True)
-
-    # BOTÓN
-    if st.button("Comenzar"):
-        st.success("¡Proceso iniciado!")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("Comenzar"):
+            st.success("¡Proceso iniciado!")
