@@ -6,6 +6,16 @@ import re
 from pathlib import Path
 from pypdf import PdfReader
 import docx
+import io # <-- ASEGÚRATE DE TENER ESTA LÍNEA
+import os # <-- Y ESTA, PARA MANEJAR ARCHIVOS
+import imgkit # <-- Y ESTA, PARA LAS IMÁGENES
+from docx.shared import Inches # <-- Y ESTA, PARA EL TAMAÑO DE IMAGEN
+if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
+if 'analisis_resultado' not in st.session_state: st.session_state.analisis_resultado = None
+if 'cuestionario' not in st.session_state: st.session_state.cuestionario = None
+if 'pregunta_idx' not in st.session_state: st.session_state.pregunta_idx = 0
+if 'plan_de_prompts' not in st.session_state: st.session_state.plan_de_prompts = None
+if 'documento_final_bytes' not in st.session_state: st.session_state.documento_final_bytes = None # Para guardar el Word
 
 # --- 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS (CSS) ---
 st.set_page_config(layout="wide")
@@ -238,6 +248,61 @@ def extraer_texto_de_archivo(archivo_subido):
         st.error(f"Error al leer el archivo '{archivo_subido.name}': {e}")
     return texto_completo
 
+def agregar_markdown_a_word(documento, texto_markdown):
+    # ... (Pega aquí tu función completa 'agregar_markdown_a_word') ...
+    # ... Te la pongo aquí por si acaso ...
+    patron_encabezado = re.compile(r'^(#+)\s+(.*)')
+    patron_lista_numerada = re.compile(r'^\s*\d+\.\s+')
+    patron_lista_viñeta = re.compile(r'^\s*[\*\-]\s+')
+    def procesar_linea_con_negritas(parrafo, texto):
+        partes = re.split(r'(\*\*.*?\*\*)', texto)
+        for parte in partes:
+            if parte.startswith('**') and parte.endswith('**'):
+                parrafo.add_run(parte[2:-2]).bold = True
+            elif parte:
+                parrafo.add_run(parte)
+    for linea in texto_markdown.split('\n'):
+        linea_limpia = linea.strip()
+        if not linea_limpia: continue
+        match_encabezado = patron_encabezado.match(linea_limpia)
+        if match_encabezado:
+            nivel = len(match_encabezado.group(1))
+            titulo = match_encabezado.group(2).strip()
+            documento.add_heading(titulo, level=min(nivel, 4))
+            continue
+        if patron_lista_numerada.match(linea_limpia):
+            texto_item = patron_lista_numerada.sub('', linea_limpia)
+            p = documento.add_paragraph(style='List Number')
+            procesar_linea_con_negritas(p, texto_item)
+        elif patron_lista_viñeta.match(linea_limpia):
+            texto_item = patron_lista_viñeta.sub('', linea_limpia)
+            p = documento.add_paragraph(style='List Bullet')
+            procesar_linea_con_negritas(p, texto_item)
+        else:
+            p = documento.add_paragraph()
+            procesar_linea_con_negritas(p, linea_limpia)
+
+def es_html(texto):
+    patron_html = re.compile(r'<\s*html|<!DOCTYPE html>|<body|<div|<table', re.IGNORECASE)
+    return bool(patron_html.search(texto))
+
+def limpiar_respuesta_html(texto_sucio):
+    match = re.search(r'```html\s*(.*?)\s*```', texto_sucio, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return texto_sucio.strip()
+
+def html_a_imagen(html_content, output_filename="imagen_html.png"):
+    try:
+        options = {'format': 'png', 'encoding': "UTF-8", 'quiet': ''}
+        imgkit.from_string(html_content, output_filename, options=options)
+        if os.path.exists(output_filename):
+            return output_filename
+        return None
+    except Exception as e:
+        st.warning(f"No se pudo generar la imagen desde HTML: {e}")
+        return None
+        
 def mostrar_resultado_analisis(data):
     """
     Muestra la estructura del análisis usando expanders para una vista más limpia.
@@ -400,12 +465,11 @@ def pagina_fase1():
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-flash') # Flash es ideal para esta tarea rápida
+                        model = genai.GenerativeModel('gemini-1.5-flash')
 
-                        # Preparamos el contenido para la IA: el prompt + el análisis JSON de la fase 0
                         analisis_previo = st.session_state.analisis_resultado
                         contenido_ia = [
-                            PROMPT_GENERAR_LISTA_PREGUNTAS,
+                            PROMPT_GENERAR_LISTA_PREGUNTAS, # <-- Necesitas tener este prompt definido
                             "Aquí está la estructura y los matices generados previamente:",
                             json.dumps(analisis_previo)
                         ]
@@ -418,15 +482,12 @@ def pagina_fase1():
                         json_limpio_str = limpiar_respuesta_json(response.text)
                         if json_limpio_str:
                             cuestionario_data = json.loads(json_limpio_str).get("cuestionario", [])
-                            # Añadimos un campo 'respuesta' vacío a cada pregunta
-                            for q in cuestionario_data:
-                                q['respuesta'] = ''
+                            for q in cuestionario_data: q['respuesta'] = ''
                             st.session_state.cuestionario = cuestionario_data
                             st.session_state.pregunta_idx = 0
-                            st.rerun() # Volvemos a cargar la página para mostrar la primera pregunta
+                            st.rerun()
                         else:
                             st.error("La IA no pudo generar el cuestionario. Inténtalo de nuevo.")
-
                     except Exception as e:
                         st.error(f"Ocurrió un error: {e}")
     
@@ -435,51 +496,152 @@ def pagina_fase1():
         cuestionario = st.session_state.cuestionario
         idx = st.session_state.pregunta_idx
         pregunta_actual = cuestionario[idx]
-
-        # Barra de progreso
         total_preguntas = len(cuestionario)
+
         st.progress((idx + 1) / total_preguntas, text=f"Pregunta {idx + 1} de {total_preguntas}")
 
-        # El "cuadrado bonito" para la pregunta
         with st.container():
             st.markdown('<div class="question-box">', unsafe_allow_html=True)
             st.subheader(f"Referente a: {pregunta_actual['apartado_referencia']}")
             st.write(pregunta_actual['pregunta'])
-            
-            # El text_area para la respuesta. La clave es única para cada pregunta.
-            respuesta = st.text_area(
-                "Respuesta del cliente:", 
-                value=pregunta_actual['respuesta'], 
-                height=200,
-                key=f"respuesta_{idx}"
-            )
+            respuesta = st.text_area("Respuesta del cliente:", value=pregunta_actual['respuesta'], height=200, key=f"respuesta_{idx}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Guardamos la respuesta actual en el estado de sesión
         st.session_state.cuestionario[idx]['respuesta'] = respuesta
 
-        # Botones de navegación
         col1, col2, col3 = st.columns([1, 1, 1])
-
         with col1:
             if idx > 0:
                 if st.button("⬅️ Anterior"):
                     st.session_state.pregunta_idx -= 1
                     st.rerun()
-        
         with col3:
             if idx < total_preguntas - 1:
                 if st.button("Siguiente ➡️"):
                     st.session_state.pregunta_idx += 1
                     st.rerun()
             else:
-                if st.button("✅ Finalizar Cuestionario"):
-                    # Aquí iría la lógica para pasar a la Fase 2
-                    st.success("¡Cuestionario completado! Todas las respuestas han sido guardadas.")
-                    # st.session_state.pagina_actual = 'fase2'
-                    # st.rerun()
+                if st.button("✅ Finalizar y Continuar a la Redacción", on_click=ir_a_fase2):
+                    st.success("¡Cuestionario completado! Pasando a la fase final...")
+                    time.sleep(2)
+                    st.rerun()
     
     st.button("Volver al Inicio", on_click=ir_al_inicio)
+
+
+def pagina_fase2():
+    st.title("Fase Final: Redacción del Documento")
+
+    if st.session_state.documento_final_bytes is None:
+        st.info("La IA está lista para redactar la memoria técnica completa. Utilizará la estructura, los pliegos y tus respuestas para generar cada sección del documento.")
+        st.warning("Este proceso es intensivo y puede tardar varios minutos. Por favor, no cierres esta ventana.")
+
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            if st.button("✍️ Iniciar Redacción Automática", use_container_width=True):
+                if 'analisis_resultado' not in st.session_state or 'referencias_archivos' not in st.session_state:
+                    st.error("Faltan datos de la Fase 0. Por favor, reinicia el proceso."); st.stop()
+
+                # --- 1. GENERACIÓN DEL PLAN DE CONTENIDOS ---
+                with st.spinner("Paso 1 de 2: Generando plan de contenidos..."):
+                    try:
+                        api_key = st.secrets["GEMINI_API_KEY"]; genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-1.5-pro')
+                        
+                        analisis = st.session_state.analisis_resultado
+                        referencias_archivos = st.session_state.referencias_archivos
+                        respuestas_cliente = st.session_state.get('cuestionario', [])
+                        contexto_cliente = "\n\n--- CONTEXTO ADICIONAL DEL CLIENTE ---\n"
+                        for item in respuestas_cliente:
+                            contexto_cliente += f"Para '{item['apartado_referencia']}', a la pregunta '{item['pregunta']}', el cliente respondió: '{item['respuesta']}'\n"
+
+                        planes_de_accion = []
+                        subapartados_a_procesar = analisis['matices_desarrollo']
+                        
+                        for subapartado_info in subapartados_a_procesar:
+                            prompt_plan = PROMPT_DESARROLLO.format( # <-- Necesitas tu PROMPT_DESARROLLO
+                                apartado_titulo=subapartado_info.get("apartado", ""),
+                                subapartado_titulo=subapartado_info.get("subapartado", ""),
+                                indicaciones=subapartado_info.get("indicaciones", "")
+                            )
+                            contenido_ia = [prompt_plan, contexto_cliente] + referencias_archivos
+                            response_plan = model.generate_content(
+                                contenido_ia,
+                                generation_config=genai.GenerationConfig(response_mime_type="application/json"),
+                                request_options={"timeout": 600}
+                            )
+                            json_plan = limpiar_respuesta_json(response_plan.text)
+                            if json_plan:
+                                planes_de_accion.extend(json.loads(json_plan).get("plan_de_prompts", []))
+                        
+                        st.session_state.plan_de_prompts = {"plan_de_prompts": planes_de_accion}
+                    except Exception as e:
+                        st.error(f"Error generando el plan de contenidos: {e}"); st.stop()
+
+                # --- 2. ENSAMBLAJE DEL DOCUMENTO WORD ---
+                plan_de_prompts = st.session_state.plan_de_prompts.get("plan_de_prompts", [])
+                if not plan_de_prompts: st.error("No se pudo generar un plan de contenidos válido."); st.stop()
+                
+                status_placeholder = st.empty()
+                progress_bar = st.progress(0)
+                documento = docx.Document()
+                chat_redaccion = model.start_chat()
+
+                ultimo_apartado_escrito = ""; ultimo_subapartado_escrito = ""
+
+                for i, tarea in enumerate(plan_de_prompts):
+                    apartado = tarea.get("apartado_referencia", "")
+                    subapartado = tarea.get("subapartado_referencia", "")
+                    prompt_actual = tarea.get("prompt_para_asistente")
+                    
+                    status_placeholder.info(f"Paso 2 de 2: Redactando '{subapartado}' ({i+1}/{len(plan_de_prompts)})")
+                    
+                    if apartado and apartado != ultimo_apartado_escrito:
+                        if ultimo_apartado_escrito: documento.add_page_break()
+                        documento.add_heading(apartado, level=1)
+                        ultimo_apartado_escrito = apartado; ultimo_subapartado_escrito = ""
+                    if subapartado and subapartado != ultimo_subapartado_escrito:
+                        documento.add_heading(subapartado, level=2)
+                        ultimo_subapartado_escrito = subapartado
+
+                    response_redaccion = chat_redaccion.send_message(prompt_actual)
+                    respuesta_ia = response_redaccion.text
+
+                    if es_html(respuesta_ia):
+                        html_limpio = limpiar_respuesta_html(respuesta_ia)
+                        nombre_img = f"temp_image_{i}.png"
+                        image_file = html_a_imagen(html_limpio, output_filename=nombre_img)
+                        if image_file:
+                            documento.add_picture(image_file, width=Inches(6.0))
+                            os.remove(image_file)
+                    else:
+                        agregar_markdown_a_word(documento, respuesta_ia)
+                    
+                    progress_bar.progress((i + 1) / len(plan_de_prompts))
+                
+                doc_io = io.BytesIO()
+                documento.save(doc_io)
+                st.session_state.documento_final_bytes = doc_io.getvalue()
+                
+                status_placeholder.success("✅ ¡Documento redactado con éxito!")
+                time.sleep(2)
+                st.rerun()
+
+    else:
+        st.header("🎉 ¡Tu Memoria Técnica está Lista!")
+        st.info("El documento ha sido generado. Haz clic en el botón de abajo para descargarlo en formato .docx.")
+        
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            st.download_button(
+                label="📥 Descargar Memoria Técnica (.docx)",
+                data=st.session_state.documento_final_bytes,
+                file_name="Memoria_Tecnica_Generada.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+
+    st.button("Empezar de Nuevo", on_click=ir_al_inicio)
 
 # --- 5. ROUTER PRINCIPAL DE LA APLICACIÓN ---
 if st.session_state.pagina_actual == 'inicio':
@@ -488,3 +650,5 @@ elif st.session_state.pagina_actual == 'fase0':
     pagina_fase0()
 elif st.session_state.pagina_actual == 'fase1':
     pagina_fase1()
+elif st.session_state.pagina_actual == 'fase2':
+    pagina_fase2()
