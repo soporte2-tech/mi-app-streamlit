@@ -1,18 +1,7 @@
 import streamlit as st
-import base64
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide")
-
-# --- FUNCIÓN PARA CARGAR IMAGEN COMO BASE64 ---
-# Esto hace que la imagen se cargue siempre, sin problemas de ruta.
-def get_image_as_base64(path):
-    try:
-        with open(path, "rb") as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    except IOError:
-        return None
 
 # --- CSS FINAL Y DEFINITIVO ---
 css_final = """
@@ -30,7 +19,8 @@ css_final = """
     }
 
     /* La "Tarjeta" que contendrá todo nuestro contenido */
-    .card {
+    /* Este div será creado con st.markdown para envolver todo */
+    .card-container {
         background-color: white;
         padding: 40px;
         border-radius: 15px;
@@ -43,7 +33,7 @@ css_final = """
     .title {
         color: #1E3A5F;
         font-weight: 700;
-        font-size: clamp(1.8rem, 4vw, 2.5rem);
+        font-size: clamp(1.8rem, 4vw, 2.5rem); /* Título responsive */
         letter-spacing: -1px;
         margin-top: 20px;
         margin-bottom: 20px;
@@ -53,7 +43,7 @@ css_final = """
     /* Estilo de la descripción */
     .description {
         color: #555;
-        font-size: clamp(1rem, 2.5vw, 1.1rem);
+        font-size: clamp(1rem, 2.5vw, 1.1rem); /* Texto responsive */
         line-height: 1.6;
         margin-bottom: 30px;
     }
@@ -69,6 +59,7 @@ css_final = """
         border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0, 86, 179, 0.2);
         transition: all 0.3s ease;
+        width: 100%; /* El botón ocupará todo el ancho de su columna */
     }
 
     .stButton>button:hover {
@@ -80,34 +71,37 @@ css_final = """
 st.markdown(f"<style>{css_final}</style>", unsafe_allow_html=True)
 
 # --- LAYOUT CON COLUMNAS PARA CENTRADO ---
+# Usamos columnas para centrar horizontalmente todo el bloque de la tarjeta
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # Usamos un único st.markdown para crear toda la tarjeta y su contenido.
-    # Esto nos da control total sobre el HTML y evita los errores de Streamlit.
-    
-    img_base64 = get_image_as_base64("imagen.png")
-    
-    if img_base64:
-        # Si la imagen se carga, la mostramos
-        image_html = f'<img src="data:image/png;base64,{img_base64}" width="150">'
-    else:
-        # Si no, mostramos un aviso
-        image_html = '<div style="background-color:#ffcccc;color:#a00;padding:10px;border-radius:5px;">⚠️ No se encontró la imagen \'imagen.png\'. Súbela a GitHub.</div>'
+    # Usamos un markdown para abrir un div que actuará como nuestro contenedor de tarjeta
+    st.markdown('<div class="card-container">', unsafe_allow_html=True)
 
-    card_html = f"""
-    <div class="card">
-        {image_html}
-        <h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>
+    # LOGO (usando st.image para que se cargue correctamente)
+    try:
+        st.image('imagen.png', width=150)
+    except Exception as e:
+        st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
+
+    # TÍTULO (usando st.markdown)
+    st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+
+    # DESCRIPCIÓN (usando st.markdown)
+    st.markdown("""
         <p class="description">
             Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
             <br>
             Haz clic en <b>Comenzar</b> para iniciar el proceso.
         </p>
-    </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # El botón se coloca fuera del markdown, pero visualmente se alineará correctamente.
-    if st.button("Comenzar"):
-        st.success("¡Proceso iniciado!")
+    # --- CENTRADO DEL BOTÓN DENTRO DE LA TARJETA ---
+    # Creamos un sub-layout de columnas solo para el botón
+    b_col1, b_col2, b_col3 = st.columns([1, 1.5, 1])
+    with b_col2:
+        if st.button("Comenzar"):
+            st.success("¡Proceso iniciado!")
+
+    # Cerramos el div de nuestro contenedor de tarjeta
+    st.markdown('</div>', unsafe_allow_html=True)
