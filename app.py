@@ -3,7 +3,8 @@ import streamlit as st
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide")
 
-# --- CSS FINAL: SIMPLE Y DIRIGIDO AL CONTENEDOR DE STREAMLIT ---
+# --- CSS FINAL Y DEFINITIVO ---
+# Este CSS es más específico para asegurar que se aplique correctamente.
 css_final = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
@@ -18,24 +19,24 @@ css_final = """
         font-family: 'Montserrat', sans-serif;
     }
     
-    /* ESTA ES LA CLAVE: Aplicamos el estilo de la tarjeta DIRECTAMENTE
-       al contenedor nativo de Streamlit que vamos a crear */
+    /* LA CLAVE: Aplicamos el estilo de la tarjeta al contenedor de Streamlit */
+    /* Este selector es robusto y apunta al contenedor que creamos con st.container */
     [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
-        background-color: white;
+        background-color: white; /* 1. Fondo blanco */
         padding: 40px;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         margin-top: 4rem;
-        border: none; /* Quitamos el borde por defecto del contenedor */
+        border: none; /* Quitamos el borde gris por defecto del contenedor */
         
-        /* Centramos todo el contenido de la tarjeta */
+        /* 2. Centramos todo el contenido verticalmente */
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 20px;
+        align-items: center; /* ESTO CENTRA TODO HORIZONTALMENTE */
+        gap: 20px; /* Espacio uniforme entre elementos */
     }
     
-    /* Estilo del título principal */
+    /* Estilos para el texto y el botón (sin cambios) */
     .title {
         color: #1E3A5F;
         font-weight: 700;
@@ -43,18 +44,17 @@ css_final = """
         letter-spacing: -1px;
         line-height: 1.2;
         margin: 0;
+        text-align: center;
     }
     
-    /* Estilo de la descripción */
     .description {
         color: #555;
         font-size: clamp(1rem, 2.5vw, 1.1rem);
         line-height: 1.6;
         margin: 0;
-        padding-bottom: 1rem; /* Espacio extra antes del botón */
+        text-align: center;
     }
 
-    /* Estilo del botón */
     .stButton>button {
         background-color: #0056b3;
         color: white;
@@ -75,12 +75,12 @@ css_final = """
 """
 st.markdown(f"<style>{css_final}</style>", unsafe_allow_html=True)
 
-# --- LAYOUT CON COLUMNAS PARA CENTRADO HORIZONTAL ---
+# --- LAYOUT CON COLUMNAS PARA CENTRADO HORIZONTAL DE LA TARJETA ---
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # LA MAGIA: Usamos un contenedor nativo de Streamlit.
-    # El CSS de arriba lo convertirá en nuestra tarjeta.
+    # Creamos un contenedor nativo de Streamlit. El CSS de arriba lo convertirá
+    # en nuestra tarjeta blanca y centrará todo su contenido.
     with st.container(border=True):
 
         # LOGO
@@ -99,6 +99,5 @@ with col2:
         """, unsafe_allow_html=True)
 
         # BOTÓN
-        # No necesita trucos de columnas, el CSS del contenedor ya lo centra.
         if st.button("Comenzar"):
             st.success("¡Proceso iniciado!")
