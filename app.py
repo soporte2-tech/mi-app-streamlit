@@ -101,33 +101,36 @@ EJEMPLO DE SALIDA OBLIGATORIA (FRAGMENTO):
 }
 """
 PROMPT_DESARROLLO = """
-Actúa como un consultor experto redactando una memoria técnica para una licitación pública. Tu tarea es crear los prompts que darán forma al texto de este subapartado. Debes tener en cuenta que estas indicaciones deben tener todo tipo de detalles para que otra IA sea capaz de generar el contenido final.
-Debes seguir estos pasos:
-1. Investiga en los archivos de "Pliego" y "Memoria de ejemplo" la longitud y requisitos del apartado. Divídelo en varios prompts si es necesario.
-2. Complementa los prompts con el contexto de la empresa proporcionado. Si no hay información, puedes proponer contenido coherente.
-3. Asegura que la redacción sea humana, coherente y fácil de leer.
-4. Pide que se usen tablas, bullet points y listas (aproximadamente 75% texto, 25% elementos visuales).
-5. Si un resumen visual aporta valor, crea un prompt específico para generar un HTML minimalista y profesional para ser capturado como imagen. Usa la letra Urbanist y los colores #0046C6, #EDE646, #32CFAA, #C2D1F2, #EB0045.
-6. Cumple los criterios del pliego sin mencionarlos explícitamente. Sé elegante en la redacción.
-7. Sé concreto: detalla el quién, cómo, cuándo y cuánto. Propón KPIs realistas si se piden.
-8. Evita la repetición de ideas, el exceso de adjetivos y frases grandilocuentes o clichés.
-9. No menciones el nombre de la empresa repetidamente.
+Actúa como un consultor experto creando un plan de redacción para una memoria técnica.
+Tu objetivo es generar una lista de prompts que otra IA usará para escribir el contenido final.
 
-Este es el subapartado a desarrollar:
-- Apartado Principal: "{apartado_titulo}"
-- Subapartado a Redactar: "{subapartado_titulo}"
-- Indicaciones de la plantilla: "{indicaciones}"
+**INFORMACIÓN DISPONIBLE:**
+- Tienes acceso a los pliegos, memorias de ejemplo y documentos de la empresa.
+- **Apartado Principal de Referencia:** "{apartado_titulo}"
+- **Subapartado Específico a Desarrollar:** "{subapartado_titulo}"
+- **Indicaciones Clave de los Pliegos:** "{indicaciones}"
 
-REGLAS DE SALIDA: Tu respuesta DEBE ser SÓLO un único objeto JSON válido, con una única clave "plan_de_prompts" cuyo valor sea una lista de objetos. Cada objeto debe seguir esta estructura:
+**DIRECTRICES PARA LOS PROMPTS QUE GENERES:**
+- Deben ser detallados, incluyendo contexto de los pliegos y de la empresa.
+- Tienen que guiar a la IA para una redacción profesional pero amena, con un toque humano.
+- Deben solicitar un balance de contenido: 75% texto y 25% elementos visuales (tablas, listas).
+- Si un resumen visual es útil, incluye un prompt específico para generar un HTML minimalista (letra Urbanist, colores #0046C6, #EDE646, #32CFAA, #C2D1F2, #EB0045).
+- Deben ser concretos (quién, cómo, cuándo, cuánto) y evitar repeticiones o clichés.
+- Cada prompt debe definir un rango de palabras aproximado.
+
+**TAREA PRINCIPAL E INELUDIBLE:**
+Tu única salida debe ser un objeto JSON válido. NO incluyas ningún otro texto, ni introducciones, ni explicaciones, ni ```json. Solo el JSON.
+El objeto JSON debe contener una única clave "plan_de_prompts", cuyo valor sea una lista de objetos.
+Cada objeto de la lista representa un prompt y debe seguir ESTRICTAMENTE esta estructura:
 {{
   "apartado_referencia": "{apartado_titulo}",
   "subapartado_referencia": "{subapartado_titulo}",
-  "prompt_id": "Un identificador único (ej: PROMPT_2_1_A, o PROMPT_2_1_1_HTML_VISUAL si es HTML)",
+  "prompt_id": "Un identificador único para el prompt (ej: PROMPT_2_1_A, o PROMPT_2_1_HTML_VISUAL si es HTML)",
   "prompt_para_asistente": "La instrucción detallada para el asistente en formato Markdown."
 }}
-Utiliza toda la información de los archivos disponibles (Pliegos, Memorias, Doc. Empresa) para crear tu respuesta en español.
-"""
 
+Analiza toda la información y genera el JSON con el plan de prompts para el subapartado especificado.
+"""
 # --- 3. MANEJO DE ESTADO DE SESIÓN Y NAVEGACIÓN ---
 
 # A. Inicialización del Cerebro de la App
