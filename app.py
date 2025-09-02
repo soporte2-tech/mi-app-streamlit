@@ -300,7 +300,7 @@ def pagina_fase0():
                         
                         # --- INICIO DE CAMBIOS ---
                         # Opción 1: Usar el modelo Pro
-                        model = genai.GenerativeModel('gemini-1.5-pro') 
+                        model = genai.GenerativeModel('gemini-1.5-flash') 
                         # --- FIN DE CAMBIOS ---
 
                         prompt_a_usar = PROMPT_PLANTILLA if plantilla_file else PROMPT_PLIEGOS
