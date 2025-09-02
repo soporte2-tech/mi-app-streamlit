@@ -79,7 +79,8 @@ with col2:
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     # LOGO
-    st.image('4b8e1bb9-f54e-4003-afa3-ee7d569fbe98.png', width=150)
+    st.image("imagen.png", width=150)
+
 
     # TÍTULO
     st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
