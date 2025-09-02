@@ -4,8 +4,6 @@ import streamlit as st
 st.set_page_config(layout="wide")
 
 # --- 2. CSS MÍNIMO Y EFECTIVO ---
-# Este CSS solo hace tres cosas: poner el fondo blanco, ocultar
-# elementos innecesarios y estilizar el botón. Nada más.
 css_simple = """
     /* Fondo blanco para toda la app */
     .stApp {
@@ -39,17 +37,19 @@ st.markdown(f"<style>{css_simple}</style>", unsafe_allow_html=True)
 
 # --- 3. LAYOUT CENTRADO ---
 # Usamos columnas para crear un espacio central donde vivirá todo nuestro contenido.
-# Esta es la forma correcta y más robusta de centrar en Streamlit.
 _ , col2, _ = st.columns([1, 2, 1])
 
 with col2:
     # --- 4. CONTENIDO DE LA PÁGINA ---
     
-    # LOGO CENTRADO
-    try:
-        st.image('imagen.png', width=150)
-    except Exception:
-        st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
+    # === LA CORRECCIÓN ESTÁ AQUÍ ===
+    # LOGO CENTRADO USANDO COLUMNAS
+    _ , logo_col, _ = st.columns([1, 1, 1])
+    with logo_col:
+        try:
+            st.image('imagen.png', width=150)
+        except Exception:
+            st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
 
     # TÍTULO GRANDE Y CENTRADO
     st.markdown("<h1 style='text-align: center; color: #1E3A5F;'>AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>", unsafe_allow_html=True)
@@ -71,7 +71,6 @@ with col2:
     st.write("")
 
     # BOTÓN CENTRADO
-    # Usamos un sub-layout de columnas solo para el botón, para asegurar su centrado perfecto.
     _ , btn_col, _ = st.columns([1, 1, 1])
     with btn_col:
         if st.button("Comenzar"):
