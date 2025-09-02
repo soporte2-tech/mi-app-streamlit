@@ -217,16 +217,34 @@ def html_a_imagen(html_content, output_filename="imagen.png"):
         return None
 
 def mostrar_resultado_analisis(data):
-    if not data: st.error("No se pudo generar el análisis."); return
-    st.subheader("Estructura de Apartados Propuesta"); st.markdown("---")
-    for seccion in data.get("estructura_memoria", []):
-        with st.expander(f"**{seccion.get('apartado', 'Sin Título')}**"):
-            subapartados = seccion.get("subapartados", [])
-            if not subapartados: st.write("*No se encontraron subapartados.*")
-            else:
-                for sub in subapartados:
-                    texto_limpio = sub.lstrip('- '); nivel = texto_limpio.count('.'); sangria = (nivel - 1) * 25 if nivel > 0 else 0
-                    st.markdown(f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
+    if not data:
+        st.error("No se pudo generar el análisis.")
+        return
+    st.subheader("Estructura de Apartados Propuesta")
+    st.markdown("---")
+
+    estructura = data.get("estructura_memoria", [])
+
+    for seccion in estructura:
+        # Verificamos si 'seccion' es un diccionario (el formato que esperamos)
+        if isinstance(seccion, dict):
+            apartado_principal = seccion.get('apartado', 'Sin Título')
+            with st.expander(f"**{apartado_principal}**"):
+                subapartados = seccion.get("subapartados", [])
+                if not subapartados:
+                    st.write("*No se encontraron subapartados para esta sección.*")
+                else:
+                    for sub in subapartados:
+                        texto_limpio = sub.lstrip('- ')
+                        nivel = texto_limpio.count('.')
+                        sangria = (nivel - 1) * 25 if nivel > 0 else 0
+                        st.markdown(f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
+        
+        # Verificamos si 'seccion' es un simple texto (el formato que causa el error)
+        elif isinstance(seccion, str):
+            # En lugar de romper el programa, lo mostramos como un título sin desplegable
+            st.markdown(f"**{seccion}**")
+            st.write("*No se generaron subapartados detallados para esta sección.*")
 
 
 # --- 5. DEFINICIÓN DE LAS PÁGINAS ---
