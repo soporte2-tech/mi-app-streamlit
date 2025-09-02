@@ -193,21 +193,33 @@ def extraer_texto_de_archivo(archivo_subido):
     return texto_completo
 
 def mostrar_resultado_analisis(data):
+    """
+    Muestra únicamente la ESTRUCTURA del análisis de forma visual y limpia.
+    Los matices se quedan guardados en session_state pero no se muestran.
+    """
     if not data:
         st.error("No se pudo generar el análisis.")
         return
-    st.subheader("뼈 Estructura de Apartados Propuesta")
+
+    # --- CAMBIO: Título más limpio, sin emojis confusos ---
+    st.subheader("Estructura de Apartados Propuesta")
+    st.markdown("---") # Añadimos un separador visual
+
+    # Bucle para mostrar la estructura de forma más elegante
     for seccion in data.get("estructura_memoria", []):
+        # Muestra el apartado principal en negrita
         st.markdown(f"**{seccion.get('apartado', 'Sin Título')}**")
+
+        # Muestra los subapartados con un bullet point y sangría
         with st.container():
             for sub in seccion.get("subapartados", []):
-                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;- {sub}")
-    st.subheader("📝 Matices e Indicaciones por Apartado")
-    for matiz in data.get("matices_desarrollo", []):
-        with st.expander(f"**{matiz.get('subapartado', 'Detalles')}**"):
-            st.markdown(f"**Apartado principal:** {matiz.get('apartado', 'N/A')}")
-            st.markdown(f"**Indicaciones:**")
-            st.write(matiz.get('indicaciones', 'No hay indicaciones específicas.'))
+                # --- CAMBIO: Reemplazamos el guion por un bullet point y limpiamos el texto ---
+                # .lstrip('- ') elimina guiones o espacios al inicio por si la IA los añade
+                texto_limpio = sub.lstrip('- ')
+                st.markdown(f"<div style='margin-left: 30px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
+
+    # --- CAMBIO: Hemos eliminado completamente la sección que mostraba los "Matices" ---
+    # Los datos siguen en st.session_state.analisis_resultado['matices_desarrollo'] para usarlos después
 
 # --- 3. MANEJO DE ESTADO DE SESIÓN ---
 
@@ -355,7 +367,7 @@ def pagina_fase0():
                     except Exception as e:
                         st.error(f"Ocurrió un error inesperado durante el análisis: {e}")
     else:
-        st.header("🔬 Resultado del Análisis")
+        st.header("📑 Estructura Sugerida del Análisis")
         mostrar_resultado_analisis(st.session_state.analisis_resultado)
         st.markdown("---")
 
