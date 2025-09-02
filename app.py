@@ -381,44 +381,62 @@ def pagina_fase1():
 
 def pagina_fase2():
     st.title("Fase Final: Redacción del Documento")
+
     if st.session_state.documento_final_bytes is None:
-        st.info("La IA redactará la memoria técnica completa usando la estructura, los pliegos y tus respuestas.")
-        st.warning("Este proceso puede tardar varios minutos. No cierres esta ventana.")
+        st.info("La IA está lista para redactar la memoria técnica completa. Utilizará la estructura, los pliegos y tus respuestas para generar cada sección del documento.")
+        st.warning("Este proceso es intensivo y puede tardar varios minutos. Por favor, no cierres esta ventana.")
+
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
             if st.button("✍️ Iniciar Redacción Automática", use_container_width=True):
                 if not st.session_state.get('analisis_resultado') or not st.session_state.get('referencias_archivos'):
                     st.error("Faltan datos de la Fase 0. Por favor, reinicia el proceso."); st.stop()
                 
+                # --- 1. GENERACIÓN DEL PLAN DE CONTENIDOS ---
                 with st.spinner("Paso 1 de 2: Generando plan de contenidos..."):
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]; genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        model = genai.GenerativeModel('gemini-1.5-pro')
                         analisis = st.session_state.analisis_resultado
                         referencias_archivos = st.session_state.referencias_archivos
                         respuestas_cliente = st.session_state.get('cuestionario', [])
                         contexto_cliente = "\n\n--- CONTEXTO ADICIONAL DEL CLIENTE ---\n"
-                        for item in respuestas_cliente: contexto_cliente += f"Para '{item['apartado_referencia']}', a la pregunta '{item['pregunta']}', el cliente respondió: '{item['respuesta']}'\n"
-                        planes_de_accion = []
-                        for subapartado_info in analisis['matices_desarrollo']:
-                            prompt_plan = PROMPT_DESARROLLO.format(
-                                apartado_titulo=subapartado_info.get("apartado", ""),
-                                subapartado_titulo=subapartado_info.get("subapartado", ""),
-                                indicaciones=subapartado_info.get("indicaciones", "")
-                            )
-                            contenido_ia = [prompt_plan, contexto_cliente] + referencias_archivos
-                            response_plan = model.generate_content(
-                                contenido_ia,
-                                generation_config=genai.GenerationConfig(response_mime_type="application/json"),
-                                request_options={"timeout": 600}
-                            )
-                            json_plan = limpiar_respuesta_json(response_plan.text)
-                            if json_plan: planes_de_accion.extend(json.loads(json_plan).get("plan_de_prompts", []))
-                        st.session_state.plan_de_prompts = {"plan_de_prompts": planes_de_accion}
-                    except Exception as e: st.error(f"Error generando el plan de contenidos: {e}"); st.stop()
+                        for item in respuestas_cliente:
+                            contexto_cliente += f"Para '{item.get('apartado_referencia', '')}', a la pregunta '{item.get('pregunta', '')}', el cliente respondió: '{item.get('respuesta', '')}'\n"
 
+                        planes_de_accion = []
+                        subapartados_a_procesar = analisis.get('matices_desarrollo', [])
+                        
+                        # --- INICIO DE LA CORRECCIÓN ---
+                        for subapartado_info in subapartados_a_procesar:
+                            # Añadimos una comprobación para asegurar que es un diccionario
+                            if isinstance(subapartado_info, dict):
+                                prompt_plan = PROMPT_DESARROLLO.format(
+                                    apartado_titulo=subapartado_info.get("apartado", ""),
+                                    subapartado_titulo=subapartado_info.get("subapartado", ""),
+                                    indicaciones=subapartado_info.get("indicaciones", "")
+                                )
+                                contenido_ia = [prompt_plan, contexto_cliente] + referencias_archivos
+                                response_plan = model.generate_content(
+                                    contenido_ia,
+                                    generation_config=genai.GenerationConfig(response_mime_type="application/json"),
+                                    request_options={"timeout": 600}
+                                )
+                                json_plan = limpiar_respuesta_json(response_plan.text)
+                                if json_plan:
+                                    try:
+                                        planes_de_accion.extend(json.loads(json_plan).get("plan_de_prompts", []))
+                                    except json.JSONDecodeError:
+                                        st.warning(f"La IA devolvió un JSON inválido para el subapartado '{subapartado_info.get('subapartado', '')}'. Se omite.")
+                        # --- FIN DE LA CORRECCIÓN ---
+                        
+                        st.session_state.plan_de_prompts = {"plan_de_prompts": planes_de_accion}
+                    except Exception as e:
+                        st.error(f"Error generando el plan de contenidos: {e}"); st.stop()
+
+                # --- 2. ENSAMBLAJE DEL DOCUMENTO WORD ---
                 plan_de_prompts = st.session_state.plan_de_prompts.get("plan_de_prompts", [])
-                if not plan_de_prompts: st.error("No se pudo generar un plan de contenidos válido."); st.stop()
+                if not plan_de_prompts: st.error("No se pudo generar un plan de contenidos válido. La IA no devolvió prompts."); st.stop()
                 
                 status_placeholder = st.empty(); progress_bar = st.progress(0)
                 documento = docx.Document(); chat_redaccion = model.start_chat()
@@ -437,13 +455,20 @@ def pagina_fase2():
                         documento.add_heading(subapartado, level=2)
                         ultimo_subapartado_escrito = subapartado
 
-                    response_redaccion = chat_redaccion.send_message(prompt_actual); respuesta_ia = response_redaccion.text
-                    if es_html(respuesta_ia):
-                        html_limpio = limpiar_respuesta_html(respuesta_ia)
-                        nombre_img = f"temp_image_{i}.png"
-                        image_file = html_a_imagen(html_limpio, output_filename=nombre_img)
-                        if image_file: documento.add_picture(image_file, width=Inches(6.0)); os.remove(image_file)
-                    else: agregar_markdown_a_word(documento, respuesta_ia)
+                    if prompt_actual: # Solo enviar si el prompt no está vacío
+                        response_redaccion = chat_redaccion.send_message(prompt_actual); respuesta_ia = response_redaccion.text
+                        if es_html(respuesta_ia):
+                            html_limpio = limpiar_respuesta_html(respuesta_ia)
+                            nombre_img = f"temp_image_{i}.png"
+                            image_file = html_a_imagen(html_limpio, output_filename=nombre_img)
+                            if image_file: 
+                                try:
+                                    documento.add_picture(image_file, width=Inches(6.0)); os.remove(image_file)
+                                except Exception as img_err:
+                                    st.warning(f"No se pudo insertar la imagen {nombre_img}: {img_err}")
+                        else:
+                            agregar_markdown_a_word(documento, respuesta_ia)
+                    
                     progress_bar.progress((i + 1) / len(plan_de_prompts))
                 
                 doc_io = io.BytesIO(); documento.save(doc_io)
@@ -462,6 +487,7 @@ def pagina_fase2():
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 use_container_width=True
             )
+
     st.button("Empezar de Nuevo", on_click=ir_al_inicio)
 
 # --- 6. ROUTER PRINCIPAL ---
