@@ -42,9 +42,7 @@ css_profesional = """
 st.markdown(f"<style>{css_profesional}</style>", unsafe_allow_html=True)
 
 
-# --- 2. SECCIÓN DE PROMPTS Y FUNCIONES AUXILIARES (Traído de Colab) ---
-
-# ✅ PROMPTS (Pega aquí tus prompts completos para que no ocupen tanto espacio)
+# --- 2. SECCIÓN DE PROMPTS Y FUNCIONES AUXILIARES ---
 PROMPT_PLANTILLA = """
 Eres un analista de documentos extremadamente preciso.
 Te daré el texto de una plantilla de memoria técnica y los Pliegos correspondientes.
@@ -95,7 +93,7 @@ Debes explicar todo como si el que fuera a leer las indicaciones no supiera nada
     {
       "apartado": "1. Análisis",
       "subapartado": "1.1. Contexto",
-      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe describir el objeto de la contratación, que es la prestación de servicios de asesoramiento, mentoría y consultoría a personas emprendedoras autónomas en Galicia. El objetivo principal es apoyar la consolidación y crecimiento de 200 proyectos empresariales de trabajadores autónomos, a través de una red de mentores especializados, para potenciar sus competencias emprendedoras, mejorar su competitividad y reducir los riesgos. Se espera que se incluyan las dos modalidades de consultoría y mentoring: una estratégica para mejorar rendimiento y rentabilidad, y otra especializada para el desarrollo de una estrategia de expansión y escalabilidad, incluyendo un análisis competitivo y de mercado..."
+      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe describir el objeto de la contratación, que es la prestación de servicios de asesoramiento, mentoría y consultoría a personas emprendedoras autónomas en Galicia..."
     },
     {
       "apartado": "1. Análisis",
@@ -155,7 +153,7 @@ que va a redactar la memoria técnica sepa todo lo necesario para poder redactar
     {
       "apartado": "1. Solución Técnica",
       "subapartado": "1.1. Metodología",
-      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe describir el objeto de la contratación, que es la prestación de servicios de asesoramiento, mentoría y consultoría a personas emprendedoras autónomas en Galicia. El objetivo principal es apoyar la consolidación y crecimiento de 200 proyectos empresariales de trabajadores autónomos, a través de una red de mentores especializados, para potenciar sus competencias emprendedoras, mejorar su competitividad y reducir los riesgos. Se espera que se incluyan las dos modalidades de consultoría y mentoring: una estratégica para mejorar rendimiento y rentabilidad, y otra especializada para el desarrollo de una estrategia de expansión y escalabilidad, incluyendo un análisis competitivo y de mercado..."
+      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe describir el objeto de la contratación, que es la prestación de servicios de asesoramiento, mentoría y consultoría a personas emprendedoras autónomas en Galicia..."
     },
     {
       "apartado": "1. Solución Técnica",
@@ -167,14 +165,11 @@ que va a redactar la memoria técnica sepa todo lo necesario para poder redactar
 """
 
 def limpiar_respuesta_json(texto_sucio: str) -> str:
-    if not isinstance(texto_sucio, str):
-        return ""
+    if not isinstance(texto_sucio, str): return ""
     match_bloque = re.search(r'```(?:json)?\s*(\{.*\})\s*```', texto_sucio, re.DOTALL)
-    if match_bloque:
-        return match_bloque.group(1).strip()
+    if match_bloque: return match_bloque.group(1).strip()
     match_objeto = re.search(r'\{.*\}', texto_sucio, re.DOTALL)
-    if match_objeto:
-        return match_objeto.group(0).strip()
+    if match_objeto: return match_objeto.group(0).strip()
     st.warning("No se pudo encontrar un JSON válido en la respuesta de la IA.")
     return ""
 
@@ -183,8 +178,7 @@ def extraer_texto_de_archivo(archivo_subido):
     try:
         if archivo_subido.name.endswith('.pdf'):
             reader = PdfReader(archivo_subido)
-            for page in reader.pages:
-                texto_completo += (page.extract_text() or "") + "\n"
+            for page in reader.pages: texto_completo += (page.extract_text() or "") + "\n"
         elif archivo_subido.name.endswith('.docx'):
             doc = docx.Document(archivo_subido)
             texto_completo = "\n".join([p.text for p in doc.paragraphs])
@@ -193,186 +187,116 @@ def extraer_texto_de_archivo(archivo_subido):
     return texto_completo
 
 def mostrar_resultado_analisis(data):
-    """
-    Muestra únicamente la ESTRUCTURA del análisis de forma visual y limpia.
-    Los matices se quedan guardados en session_state pero no se muestran.
-    """
     if not data:
         st.error("No se pudo generar el análisis.")
         return
-
-    # --- CAMBIO: Título más limpio, sin emojis confusos ---
     st.subheader("Estructura de Apartados Propuesta")
-    st.markdown("---") # Añadimos un separador visual
-
-    # Bucle para mostrar la estructura de forma más elegante
+    st.markdown("---")
     for seccion in data.get("estructura_memoria", []):
-        # Muestra el apartado principal en negrita
         st.markdown(f"**{seccion.get('apartado', 'Sin Título')}**")
-
-        # Muestra los subapartados con un bullet point y sangría
         with st.container():
             for sub in seccion.get("subapartados", []):
-                # --- CAMBIO: Reemplazamos el guion por un bullet point y limpiamos el texto ---
-                # .lstrip('- ') elimina guiones o espacios al inicio por si la IA los añade
                 texto_limpio = sub.lstrip('- ')
                 st.markdown(f"<div style='margin-left: 30px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
 
-    # --- CAMBIO: Hemos eliminado completamente la sección que mostraba los "Matices" ---
-    # Los datos siguen en st.session_state.analisis_resultado['matices_desarrollo'] para usarlos después
-
 # --- 3. MANEJO DE ESTADO DE SESIÓN ---
-
-if 'pagina_actual' not in st.session_state:
-    st.session_state.pagina_actual = 'inicio'
-if 'analisis_resultado' not in st.session_state:
-    st.session_state.analisis_resultado = None
-
+if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
+if 'analisis_resultado' not in st.session_state: st.session_state.analisis_resultado = None
 def ir_a_fase0():
     st.session_state.pagina_actual = 'fase0'
     st.session_state.analisis_resultado = None
-
 def ir_al_inicio():
     st.session_state.pagina_actual = 'inicio'
     st.session_state.analisis_resultado = None
 
 # --- 4. DEFINICIÓN DE LAS PÁGINAS ---
-
 def pagina_inicio():
-    """Renderiza la página de bienvenida. (VERSIÓN ORIGINAL RESTAURADA)"""
     _ , col2, _ = st.columns([1, 2, 1])
-
     with col2:
-        # LOGO CENTRADO
         _ , logo_col, _ = st.columns([1, 1, 1])
         with logo_col:
-            try:
-                # Asegúrate de tener un archivo 'imagen.png' en la misma carpeta que tu script
-                st.image('imagen.png', width=150)
-            except Exception:
-                st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
-
-        # TÍTULO Y DESCRIPCIÓN
+            try: st.image('imagen.png', width=150)
+            except Exception: st.warning("⚠️ No se encontró la imagen 'imagen.png'.")
         st.markdown("<h1 style='text-align: center; color: #1E3A5F;'>AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>", unsafe_allow_html=True)
         st.write("")
-        st.markdown("""
-        <p style='text-align: center; font-size: 1.1em; color: #555;'>
-            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
-            <br>
-            Haz clic en <b>Comenzar</b> para iniciar el proceso.
-        </p>
-        """, unsafe_allow_html=True)
-        st.write("")
-        st.write("")
-
-        # BOTÓN "COMENZAR"
+        st.markdown("""<p style='text-align: center; font-size: 1.1em; color: #555;'>
+            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.<br>
+            Haz clic en <b>Comenzar</b> para iniciar el proceso.</p>""", unsafe_allow_html=True)
+        st.write("","")
         _ , btn_col, _ = st.columns([1, 1, 1])
-        with btn_col:
-            st.button("Comenzar", on_click=ir_a_fase0, use_container_width=True)
-
+        with btn_col: st.button("Comenzar", on_click=ir_a_fase0, use_container_width=True)
 
 def pagina_fase0():
-    """Renderiza la página para la Fase 0: Carga de documentos y ANÁLISIS REAL."""
     st.title("Fase 0: Preparación y Análisis")
-
     if st.session_state.analisis_resultado is None:
         st.header("Sube aquí tus pliegos y plantilla para empezar el análisis")
         st.markdown("---")
-
-        # ... (La parte de subir archivos se mantiene igual) ...
-        tiene_plantilla = st.radio(
-            "¿Dispones de una plantilla de memoria técnica?",
-            ("Sí, voy a subir una", "No, generar estructura solo con los pliegos"),
-            horizontal=True,
-            label_visibility="collapsed"
-        )
+        tiene_plantilla = st.radio("Plantilla:", ("Sí, voy a subir una", "No, generar solo con los pliegos"), horizontal=True, label_visibility="collapsed")
         plantilla_file = None
         if tiene_plantilla == "Sí, voy a subir una":
-            plantilla_file = st.file_uploader(
-                "📂 Sube tu plantilla (un único archivo DOCX o PDF)",
-                type=['docx', 'pdf']
-            )
-        pliegos_files = st.file_uploader(
-            "📂 Sube aquí el/los pliegos de la licitación (puedes seleccionar varios)",
-            type=['docx', 'pdf'],
-            accept_multiple_files=True
-        )
+            plantilla_file = st.file_uploader("📂 Sube tu plantilla (DOCX o PDF)", type=['docx', 'pdf'])
+        pliegos_files = st.file_uploader("📂 Sube el/los pliegos (puedes seleccionar varios)", type=['docx', 'pdf'], accept_multiple_files=True)
         st.markdown("---")
 
         if st.button("Analizar Documentos", use_container_width=True):
-            if not pliegos_files:
-                st.error("❌ Por favor, sube al menos un pliego para continuar.")
-            elif tiene_plantilla == "Sí, voy a subir una" and not plantilla_file:
-                st.error("❌ Has indicado que tienes una plantilla, por favor, súbela.")
+            if not pliegos_files: st.error("❌ Por favor, sube al menos un pliego.")
+            elif tiene_plantilla == "Sí, voy a subir una" and not plantilla_file: st.error("❌ Has indicado que tienes plantilla, por favor, súbela.")
             else:
-                with st.spinner('Conectando con la IA y analizando documentos... Esto puede tardar varios minutos.'):
+                with st.spinner('Realizando análisis profundo... Este proceso puede tardar varios minutos.'):
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                         genai.configure(api_key=api_key)
-                        
-                        # --- INICIO DE CAMBIOS ---
-                        # Opción 1: Usar el modelo Pro
-                        model = genai.GenerativeModel('gemini-1.5-flash') 
-                        # --- FIN DE CAMBIOS ---
+                        model = genai.GenerativeModel('gemini-1.5-pro') # Usamos PRO para la mejor calidad de análisis jerárquico
 
                         prompt_a_usar = PROMPT_PLANTILLA if plantilla_file else PROMPT_PLIEGOS
                         contenido_ia = [prompt_a_usar]
                         
                         if plantilla_file:
-                            st.info(f"Extrayendo texto de la plantilla: {plantilla_file.name}...")
+                            st.info("Extrayendo texto de la plantilla...")
                             texto_plantilla = extraer_texto_de_archivo(plantilla_file)
-                            if texto_plantilla:
-                                contenido_ia.append(texto_plantilla)
+                            if texto_plantilla: contenido_ia.append(texto_plantilla)
 
+                        st.info("Subiendo documentos a la API...")
                         referencias_pliegos = []
-                        temp_dir = Path("temp_files")
-                        temp_dir.mkdir(exist_ok=True)
+                        temp_dir = Path("temp_files"); temp_dir.mkdir(exist_ok=True)
                         for pliego in pliegos_files:
-                            st.info(f"Subiendo pliego a la API: {pliego.name}...")
                             temp_path = temp_dir / pliego.name
-                            with open(temp_path, "wb") as f:
-                                f.write(pliego.getvalue())
-                            
+                            with open(temp_path, "wb") as f: f.write(pliego.getvalue())
                             referencia = genai.upload_file(path=temp_path, display_name=pliego.name)
                             referencias_pliegos.append(referencia)
                             temp_path.unlink()
-
-                        if referencias_pliegos:
-                             contenido_ia.extend(referencias_pliegos)
+                        if referencias_pliegos: contenido_ia.extend(referencias_pliegos)
                         
-                        st.info("Generando estructura... La IA está trabajando. Este proceso es largo, por favor ten paciencia.")
+                        st.info("La IA está generando la estructura completa. Por favor, ten paciencia...")
+                        generation_config = genai.GenerationConfig(response_mime_type="application/json", max_output_tokens=8192)
                         
-                        # --- INICIO DE CAMBIOS ---
-                        # Opción 2: Permitir más tokens de salida
-                        generation_config = genai.GenerationConfig(
-                            response_mime_type="application/json",
-                            max_output_tokens=8192 
+                        # CAMBIO CLAVE: Timeout extendido a 10 minutos para prevenir cortes de conexión
+                        response = model.generate_content(
+                            contenido_ia,
+                            generation_config=generation_config,
+                            request_options={"timeout": 600}
                         )
-                        # --- FIN DE CAMBIOS ---
-
-                        response = model.generate_content(contenido_ia, generation_config=generation_config)
 
                         if response and hasattr(response, 'text') and response.text:
                             json_limpio_str = limpiar_respuesta_json(response.text)
                             if json_limpio_str:
                                 st.session_state.analisis_resultado = json.loads(json_limpio_str)
-                                st.success("✅ ¡Análisis completado!")
+                                st.success("✅ ¡Análisis completo!")
                                 time.sleep(2)
                                 st.rerun()
                             else:
-                                st.error("❌ La IA devolvió una respuesta, pero no se pudo extraer el JSON. Posiblemente la respuesta estaba incompleta.")
+                                st.error("❌ La IA devolvió una respuesta, pero estaba incompleta o no era un JSON válido.")
                         else:
                             st.error(f"❌ La IA no generó una respuesta válida. Detalles: {response.prompt_feedback}")
-
                     except Exception as e:
                         st.error(f"Ocurrió un error inesperado durante el análisis: {e}")
     else:
         st.header("📑 Estructura Sugerida del Análisis")
         mostrar_resultado_analisis(st.session_state.analisis_resultado)
         st.markdown("---")
-
+        # Aquí puedes añadir el botón para ir a la siguiente fase
+        st.button("Continuar a la Fase 1", key="continuar_fase1") # Ejemplo
     st.button("Volver al Inicio", on_click=ir_al_inicio)
-
 
 # --- 5. ROUTER PRINCIPAL DE LA APLICACIÓN ---
 if st.session_state.pagina_actual == 'inicio':
