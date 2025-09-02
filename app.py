@@ -246,7 +246,7 @@ def pagina_fase0():
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-pro') # Usamos PRO para la mejor calidad de análisis jerárquico
+                        model = genai.GenerativeModel('gemini-1.5-flash') # Usamos PRO para la mejor calidad de análisis jerárquico
 
                         prompt_a_usar = PROMPT_PLANTILLA if plantilla_file else PROMPT_PLIEGOS
                         contenido_ia = [prompt_a_usar]
