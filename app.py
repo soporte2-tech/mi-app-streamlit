@@ -2,13 +2,7 @@ import streamlit as st
 import os
 
 # --- CSS PERSONALIZADO ---
-def local_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# Crea un archivo CSS en el mismo directorio.
-# Este código se ejecuta cuando el usuario lo copia en el archivo style.css
-# Esto es solo para que el código sea autónomo.
+# Este código se ejecuta cuando el usuario lo copia en el archivo app.py
 css_content = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
@@ -28,15 +22,15 @@ css_content = """
         display: none; /* Oculta la cabecera por defecto de Streamlit */
     }
 
-    .main-container {
+    .centered-container {
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        height: 100vh;
         padding: 20px;
         box-sizing: border-box;
         text-align: center;
+        /* Elimina height: 100vh para evitar el scroll innecesario */
     }
 
     .title-container {
@@ -85,29 +79,28 @@ st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1, 4, 1])
 
 with col2: # Centra el contenido en la columna del medio
-    with st.container():
-        st.markdown('<div class="main-container">', unsafe_allow_html=True)
+    st.markdown('<div class="centered-container">', unsafe_allow_html=True)
+    
+    # --- CABECERA CON LOGO Y TÍTULO CENTRADOS ---
+    st.markdown('<div class="title-container">', unsafe_allow_html=True)
+    try:
+        # Carga la imagen centrada
+        st.image('imagen.png', width=150)
+    except Exception as e:
+        st.info("💡 Por favor, sube el archivo 'imagen.png' a tu repositorio de GitHub para que el logo aparezca.")
+    
+    st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- CABECERA CON LOGO Y TÍTULO CENTRADOS ---
-        st.markdown('<div class="title-container">', unsafe_allow_html=True)
-        try:
-            # Carga la imagen centrada
-            st.image('imagen.png', width=150)
-        except Exception as e:
-            st.info("💡 Por favor, sube el archivo 'imagen.png' a tu repositorio de GitHub para que el logo aparezca.")
+    # --- DESCRIPCIÓN ---
+    st.markdown("""
+        <p style="text-align: center; color: #555; font-size: 1.1em; max-width: 600px;">
+            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.<br>
+            Haz clic en "Comenzar" para iniciar el proceso.
+        </p>
+    """, unsafe_allow_html=True)
 
-        st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # --- BOTÓN DE COMENZAR CENTRADO ---
+    st.button("Comenzar")
 
-        # --- DESCRIPCIÓN ---
-        st.markdown("""
-            <p style="text-align: center; color: #555; font-size: 1.1em; max-width: 600px;">
-                Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.<br>
-                Haz clic en "Comenzar" para iniciar el proceso.
-            </p>
-        """, unsafe_allow_html=True)
-
-        # --- BOTÓN DE COMENZAR CENTRADO ---
-        st.button("Comenzar")
-
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
