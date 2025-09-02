@@ -23,7 +23,7 @@ css_content = """
     .stApp {
         background-color: #f0f2f6;
     }
-    
+
     .stApp > header {
         display: none; /* Oculta la cabecera por defecto de Streamlit */
     }
@@ -39,7 +39,7 @@ css_content = """
         text-align: center;
     }
 
-    .header-container {
+    .title-container {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -53,7 +53,7 @@ css_content = """
         font-size: 2.2em;
         margin: 0;
     }
-    
+
     .stButton>button {
         background-color: #004d99;
         color: white;
@@ -81,30 +81,33 @@ css_content = """
 
 st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
-# --- CONTENEDOR PRINCIPAL ---
-with st.container():
-    st.markdown('<div class="main-container">', unsafe_allow_html=True)
-    
-    # --- CABECERA CON LOGO Y TÍTULO CENTRADOS ---
-    st.markdown('<div class="header-container">', unsafe_allow_html=True)
-    try:
-        # Carga la imagen centrada
-        st.image('imagen.png', width=150)
-    except Exception as e:
-        st.info("💡 Por favor, sube el archivo 'imagen.png' a tu repositorio de GitHub para que el logo aparezca.")
+# --- CONTENEDOR PRINCIPAL CON COLUMNAS PARA CENTRADO ---
+col1, col2, col3 = st.columns([1, 4, 1])
 
-    st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True) # Cierre del header-container
+with col2: # Centra el contenido en la columna del medio
+    with st.container():
+        st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-    # --- DESCRIPCIÓN ---
-    st.markdown("""
-        <p style="text-align: center; color: #555; font-size: 1.1em; max-width: 600px;">
-            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.<br>
-            Haz clic en "Comenzar" para iniciar el proceso.
-        </p>
-    """, unsafe_allow_html=True)
+        # --- CABECERA CON LOGO Y TÍTULO CENTRADOS ---
+        st.markdown('<div class="title-container">', unsafe_allow_html=True)
+        try:
+            # Carga la imagen centrada
+            st.image('imagen.png', width=150)
+        except Exception as e:
+            st.info("💡 Por favor, sube el archivo 'imagen.png' a tu repositorio de GitHub para que el logo aparezca.")
 
-    # --- BOTÓN DE COMENZAR CENTRADO ---
-    st.button("Comenzar")
+        st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True) # Cierre del main-container
+        # --- DESCRIPCIÓN ---
+        st.markdown("""
+            <p style="text-align: center; color: #555; font-size: 1.1em; max-width: 600px;">
+                Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.<br>
+                Haz clic en "Comenzar" para iniciar el proceso.
+            </p>
+        """, unsafe_allow_html=True)
+
+        # --- BOTÓN DE COMENZAR CENTRADO ---
+        st.button("Comenzar")
+
+        st.markdown('</div>', unsafe_allow_html=True)
