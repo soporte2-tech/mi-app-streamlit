@@ -53,13 +53,6 @@ css_content = """
         font-size: 2.2em;
         margin: 0;
     }
-
-    .logo-img {
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        width: 150px;
-        height: auto;
-    }
     
     .stButton>button {
         background-color: #004d99;
@@ -91,11 +84,11 @@ st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 # --- CONTENEDOR PRINCIPAL ---
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
-
-    # --- CABECERA CON LOGO Y TÍTULO ---
+    
+    # --- CABECERA CON LOGO Y TÍTULO CENTRADOS ---
     st.markdown('<div class="header-container">', unsafe_allow_html=True)
     try:
-        # Intenta cargar la imagen desde la ruta relativa
+        # Carga la imagen centrada
         st.image('imagen.png', width=150)
     except Exception as e:
         st.info("💡 Por favor, sube el archivo 'imagen.png' a tu repositorio de GitHub para que el logo aparezca.")
@@ -111,7 +104,7 @@ with st.container():
         </p>
     """, unsafe_allow_html=True)
 
-    # --- BOTÓN DE COMENZAR ---
+    # --- BOTÓN DE COMENZAR CENTRADO ---
     st.button("Comenzar")
 
     st.markdown('</div>', unsafe_allow_html=True) # Cierre del main-container
