@@ -1,76 +1,59 @@
 import streamlit as st
-import os
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(layout="wide") # Aprovechamos el ancho completo
+# --- CONFIGURACIÓN DE PÁGINA ---
+# Usar layout "wide" para tener más control
+st.set_page_config(layout="wide")
 
-# --- CSS MEJORADO ---
-# Este CSS introduce un diseño de tarjeta, mejora la tipografía y añade micro-interacciones.
-css_mejorado = """
+# --- CSS CORREGIDO Y MÁS ROBUSTO ---
+css_robusto = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
-    /* Oculta elementos por defecto de Streamlit que no necesitamos */
-    .stApp > header {
-        display: none;
-    }
-    #MainMenu {
-        display: none;
-    }
-    footer {
+    /* Ocultar elementos de Streamlit que no queremos */
+    .stApp > header, #MainMenu, footer {
         display: none;
     }
 
-    /* Contenedor principal para centrar la tarjeta vertical y horizontalmente */
+    /* Fondo general de la aplicación */
     .stApp {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background-color: #f0f2f6; /* Un gris claro para el fondo */
+        background-color: #f0f2f6;
         font-family: 'Montserrat', sans-serif;
-        height: 100vh; /* Ocupa toda la altura de la ventana */
     }
 
-    /* La "Tarjeta" que contendrá todo */
+    /* La "Tarjeta" que contendrá todo nuestro contenido */
     .card {
         background-color: white;
         padding: 40px;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         text-align: center;
-        max-width: 650px; /* Ancho máximo de la tarjeta */
-        width: 90%;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px; /* Espacio entre los elementos dentro de la tarjeta */
-    }
-
-    /* Estilo del logo */
-    .logo-img {
-        width: 150px;
-        margin-bottom: 10px;
+        gap: 20px; /* Espacio uniforme entre elementos */
+        margin-top: 5rem; /* Margen superior para centrar verticalmente */
     }
 
     /* Estilo del título principal */
     .title {
-        color: #1E3A5F; /* Un azul oscuro más sobrio */
+        color: #1E3A5F;
         font-weight: 700;
-        font-size: 2.5em;
-        letter-spacing: -1px; /* Un poco más juntas las letras, más moderno */
+        font-size: clamp(1.8rem, 4vw, 2.5rem); /* Título responsive */
+        letter-spacing: -1px;
         margin: 0;
+        line-height: 1.2;
     }
     
     /* Estilo de la descripción */
     .description {
         color: #555;
-        font-size: 1.1em;
-        line-height: 1.6; /* Mayor interlineado para fácil lectura */
+        font-size: clamp(1rem, 2.5vw, 1.1rem); /* Texto responsive */
+        line-height: 1.6;
         margin: 0;
     }
 
     /* Estilo del botón */
     .stButton>button {
-        background-color: #0056b3; /* Un azul más vibrante */
+        background-color: #0056b3;
         color: white;
         font-weight: 600;
         font-size: 1em;
@@ -78,48 +61,51 @@ css_mejorado = """
         border: none;
         border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0, 86, 179, 0.2);
-        transition: all 0.3s ease; /* Transición suave para todos los efectos */
-        margin-top: 15px; /* Espacio extra arriba del botón */
+        transition: all 0.3s ease;
+        margin-top: 15px;
     }
 
     .stButton>button:hover {
-        background-color: #004494; /* Azul más oscuro al pasar el ratón */
-        transform: scale(1.05); /* Efecto de crecimiento sutil */
+        background-color: #004494;
+        transform: scale(1.05);
         box-shadow: 0 6px 15px rgba(0, 86, 179, 0.3);
     }
 """
 
-st.markdown(f"<style>{css_mejorado}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>{css_robusto}</style>", unsafe_allow_html=True)
 
-# --- CONTENIDO DE LA APP DENTRO DE UNA "TARJETA" ---
+# --- LAYOUT CON COLUMNAS PARA CENTRADO PERFECTO ---
+# Creamos tres columnas: [espacio_izq, contenido_central, espacio_der]
+# El número '3' en el medio hace que la columna central sea 3 veces más ancha que los lados.
+col1, col2, col3 = st.columns([1, 3, 1])
 
-# Usamos st.markdown para crear el contenedor principal (la tarjeta)
-st.markdown('<div class="card">', unsafe_allow_html=True)
+# Todo nuestro contenido va DENTRO de la columna 2 (col2)
+with col2:
+    # Envolvemos todo en un contenedor para aplicar la clase "card"
+    with st.container():
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-# --- LOGO ---
-try:
-    # Usamos una clase para poder estilizar la imagen si es necesario
-    st.image('imagen.png', width=150)
-except Exception as e:
-    st.warning("⚠️ No se encontró 'imagen.png'. Sube el logo a tu repositorio de GitHub.")
+        # LOGO
+        try:
+            st.image('imagen.png', width=150)
+        except Exception as e:
+            st.warning("⚠️ No se encontró 'imagen.png'. Sube el logo a tu repositorio de GitHub.")
 
-# --- TÍTULO ---
-st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+        # TÍTULO
+        st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
 
-# --- DESCRIPCIÓN ---
-st.markdown("""
-    <p class="description">
-        Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
-        <br>
-        Haz clic en <b>Comenzar</b> para iniciar el proceso.
-    </p>
-""", unsafe_allow_html=True)
+        # DESCRIPCIÓN
+        st.markdown("""
+            <p class="description">
+                Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
+                <br>
+                Haz clic en <b>Comenzar</b> para iniciar el proceso.
+            </p>
+        """, unsafe_allow_html=True)
 
-# --- BOTÓN DE ACCIÓN ---
-if st.button("Comenzar"):
-    # Aquí puedes añadir la lógica que se ejecutará al hacer clic
-    st.success("¡Proceso iniciado!") 
-    # (En una app real, aquí navegarías a otra página o mostrarías nuevos elementos)
+        # BOTÓN DE ACCIÓN
+        if st.button("Comenzar"):
+            st.success("¡Proceso iniciado!")
 
-# Cerramos el div de la tarjeta
-st.markdown('</div>', unsafe_allow_html=True)
+        # Cierre del div de la tarjeta
+        st.markdown('</div>', unsafe_allow_html=True)
