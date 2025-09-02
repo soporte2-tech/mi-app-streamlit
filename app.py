@@ -6,59 +6,38 @@ import re
 from pathlib import Path
 from pypdf import PdfReader
 import docx
-import io # <-- ASEGÚRATE DE TENER ESTA LÍNEA
-import os # <-- Y ESTA, PARA MANEJAR ARCHIVOS
-import imgkit # <-- Y ESTA, PARA LAS IMÁGENES
-from docx.shared import Inches # <-- Y ESTA, PARA EL TAMAÑO DE IMAGEN
-if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
-if 'analisis_resultado' not in st.session_state: st.session_state.analisis_resultado = None
-if 'cuestionario' not in st.session_state: st.session_state.cuestionario = None
-if 'pregunta_idx' not in st.session_state: st.session_state.pregunta_idx = 0
-if 'plan_de_prompts' not in st.session_state: st.session_state.plan_de_prompts = None
-if 'documento_final_bytes' not in st.session_state: st.session_state.documento_final_bytes = None # Para guardar el Word
+import io
+import os
+import imgkit
+from docx.shared import Inches
 
-# --- 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS (CSS) ---
+# --- 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS ---
 st.set_page_config(layout="wide")
 
-# CSS para un diseño limpio y profesional
 css_profesional = """
-    /* Fondo blanco para toda la app */
-    .stApp {
-        background-color: white;
-    }
-
-    /* Ocultar elementos innecesarios de Streamlit */
-    .stApp > header, #MainMenu, footer {
-        visibility: hidden;
-    }
-
-    /* Estilo profesional para el botón principal */
+    .stApp { background-color: white; }
+    .stApp > header, #MainMenu, footer { visibility: hidden; }
     .stButton>button {
-        background-color: #0056b3;
-        color: white;
-        font-weight: 600;
-        font-size: 1.1em;
-        padding: 12px 35px;
-        border: none;
-        border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0, 86, 179, 0.2);
-        transition: all 0.3s ease;
+        background-color: #0056b3; color: white; font-weight: 600; font-size: 1.1em;
+        padding: 12px 35px; border: none; border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 86, 179, 0.2); transition: all 0.3s ease;
     }
-    .stButton>button:hover {
-        background-color: #004494;
-        transform: scale(1.05);
+    .stButton>button:hover { background-color: #004494; transform: scale(1.05); }
+    .question-box {
+        border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px;
+        margin-top: 20px; margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     }
 """
 st.markdown(f"<style>{css_profesional}</style>", unsafe_allow_html=True)
 
 
-# --- 2. SECCIÓN DE PROMPTS Y FUNCIONES AUXILIARES ---
+# --- 2. SECCIÓN DE PROMPTS ---
 PROMPT_PLANTILLA = """
 Eres un analista de documentos extremadamente preciso.
 Te daré el texto de una plantilla de memoria técnica y los Pliegos correspondientes.
 Tu única tarea es convertirlo a un objeto JSON que contenga la estructura del indice y unas indicaciones para que la persona
 que va a redactar la memoria técnica sepa todo lo necesario para poder redactar la memoria técnica con mayor puntuación.
-
 ## REGLAS ESTRICTAS:
 1.  La estructura del documento debes sacarlo de la plantilla y las indicaciones mezclando esa información con la de los pliegos.
 2.  El objeto JSON DEBE contener dos claves de nivel superior y solo dos: "estructura_memoria" y "matices_desarrollo".
@@ -80,288 +59,178 @@ que va a redactar la memoria técnica sepa todo lo necesario para poder redactar
     - Una explicación clara de lo que incluirá este apartado.
     - El objetivo de contenido para que este apartado sume a obtener la excelencia en la memoria técnica.
     - Cosas que no deben faltar en el apartado.
-
 ## MEJORAS AÑADIDAS:
 - Responde SIEMPRE en formato JSON válido y bien estructurado. No incluyas texto fuera del objeto JSON.
-- No inventes información: solo utiliza lo que aparezca en la plantilla o en los pliegos.
-- Debes mostrar conocimiento de los pliegos, no puedes asumir que el que lee las intrucciones ya posee ese conociminento.
-Debes explicar todo como si el que fuera a leer las indicaciones no supiera nada del tema y deba redactar todo el contenido.
-- Mantén consistencia en la numeración (ejemplo: 1, 1.1, 1.1.1). Nunca mezcles números y letras.
-- Si los pliegos mencionan tablas, gráficos o anexos obligatorios, añádelos en las indicaciones como recordatorio.
-- Si hay discrepancias entre plantilla y pliego, PRIORIZA SIEMPRE lo que diga el pliego.
 - Valida que cada subapartado en "estructura_memoria" tenga su correspondiente bloque en "matices_desarrollo".
-
-## EJEMPLO DE ESTRUCTURA DE SALIDA OBLIGATORIA:
-{
-  "estructura_memoria": [
-    {
-      "apartado": "1. Análisis",
-      "subapartados": ["1.1. Contexto", "1.2. DAFO"]
-    }
-  ],
-  "matices_desarrollo": [
-    {
-      "apartado": "1. Análisis",
-      "subapartado": "1.1. Contexto",
-      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe describir el objeto de la contratación, que es la prestación de servicios de asesoramiento, mentoría y consultoría a personas emprendedoras autónomas en Galicia..."
-    },
-    {
-      "apartado": "1. Análisis",
-      "subapartado": "1.2. DAFO",
-      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe conseguir mostrar ..."
-    }
-  ]
-}
+"""
+PROMPT_PLIEGOS = """
+Eres un consultor experto en licitaciones y tu conocimiento se basa ÚNICAMENTE en los archivos que te he proporcionado.
+Tu misión es analizar los Pliegos y proponer una estructura para la memoria técnica que responda a todos los requisitos y criterios de valoración.
+Tu única tarea es convertirlo a un objeto JSON que contenga la estructura del indice y unas indicaciones para que la persona que va a redactar la memoria técnica sepa todo lo necesario para poder redactar la memoria técnica con mayor puntuación.
+## REGLAS ESTRICTAS:
+1.  Tu respuesta DEBE ser un único objeto JSON válido y nada más. Sin texto introductorio ni marcadores de formato como ```json.
+2.  El objeto JSON DEBE contener dos claves de nivel superior y solo dos: "estructura_memoria" y "matices_desarrollo".
+3.  Para CADA apartado y subapartado, DEBES anteponer su numeración correspondiente (ej: "1. Título", "1.1. Subtítulo"). ESTO ES OBLIGATORIO Y DEBE SER EN NÚMEROS NORMALES (1,2,3...).
+4.  La clave "estructura_memoria" contiene la lista de apartados y subapartados como un ÍNDICE. La lista "subapartados" SOLO debe contener los TÍTULOS numerados.
+5.  Debes coger exactamente el mismo título del apartado o subapartado que existe en los Pliegos, no lo modifiques.
+6.  La clave "matices_desarrollo" desglosa CADA subapartado, asociando su título numerado con las INSTRUCCIONES completas. NO RESUMAS.
+7.  DEBES INDICAR OBLIGATORIAMENTE LA LONGITUD DE CADA SUBAPARTADO. NO TE LO PUEDES INVENTAR.
+8.  Cada instrucción debe incluir: La longitud exacta o aproximada, una explicación clara de lo que incluirá, el objetivo de contenido para obtener la excelencia y cosas que no deben faltar.
+## MEJORAS AÑADIDAS:
+- Responde SIEMPRE en formato JSON válido y bien estructurado.
+- Explica todo como si el redactor no supiera nada del tema.
+- Mantén consistencia en la numeración (ejemplo: 1, 1.1, 1.1.1).
+- Si los Pliegos mencionan tablas, gráficos o anexos, añádelos en las indicaciones.
+- Valida que cada subapartado en "estructura_memoria" tenga su correspondiente bloque en "matices_desarrollo".
 """
 PROMPT_GENERAR_LISTA_PREGUNTAS = """
 Actúa como un consultor experto en licitaciones. Te proporcionaré una estructura de memoria técnica detallada con apartados, subapartados y matices (indicaciones) extraídos de unos pliegos.
-
 Tu única tarea es convertir esta información en una lista de preguntas claras y concisas para un cliente. El objetivo es recopilar de él toda la información necesaria para poder redactar la memoria técnica y obtener la máxima puntuación.
-
 REGLAS:
 1.  Para cada subapartado relevante de la estructura, genera una o más preguntas que extraigan la información clave mencionada en las "indicaciones".
 2.  Las preguntas deben ser directas y fáciles de entender para alguien que no es experto en licitaciones. Evita la jerga técnica siempre que sea posible.
 3.  Tu respuesta DEBE ser un único objeto JSON válido.
 4.  El JSON debe contener una única clave: "cuestionario".
 5.  El valor de "cuestionario" será una lista de objetos. Cada objeto tendrá dos claves: "apartado_referencia" (el título del subapartado) y "pregunta" (la pregunta que has generado).
-
-EJEMPLO DE ENTRADA QUE RECIBIRÁS (FRAGMENTO):
-...
-"matices_desarrollo": [
-    {
-      "apartado": "1. MEMORIA TÉCNICA",
-      "subapartado": "1.1. Metodología",
-      "indicaciones": "El subapartado debe durar 5 páginas. Debe describir nuestra metodología de trabajo, incluyendo las fases del proyecto, las herramientas que usaremos y cómo aseguraremos la calidad..."
-    }
-]
-...
-
 EJEMPLO DE SALIDA OBLIGATORIA (FRAGMENTO):
 {
   "cuestionario": [
-    {
-      "apartado_referencia": "1.1. Metodología",
-      "pregunta": "Por favor, describe paso a paso la metodología de trabajo que propondremos para este proyecto. ¿Cuáles son las fases principales?"
-    },
-    {
-      "apartado_referencia": "1.1. Metodología",
-      "pregunta": "¿Qué herramientas o software específicos utilizaremos para llevar a cabo el trabajo y por qué son las mejores para este caso?"
-    }
+    { "apartado_referencia": "1.1. Metodología", "pregunta": "Por favor, describe paso a paso la metodología de trabajo que propondremos para este proyecto. ¿Cuáles son las fases principales?" },
+    { "apartado_referencia": "1.1. Metodología", "pregunta": "¿Qué herramientas o software específicos utilizaremos para llevar a cabo el trabajo y por qué son las mejores para este caso?" }
   ]
 }
 """
+PROMPT_DESARROLLO = """
+Actúa como un consultor experto redactando una memoria técnica para una licitación pública. Tu tarea es crear los prompts que darán forma al texto de este subapartado. Debes tener en cuenta que estas indicaciones deben tener todo tipo de detalles para que otra IA sea capaz de generar el contenido final.
+Debes seguir estos pasos:
+1. Investiga en los archivos de "Pliego" y "Memoria de ejemplo" la longitud y requisitos del apartado. Divídelo en varios prompts si es necesario.
+2. Complementa los prompts con el contexto de la empresa proporcionado. Si no hay información, puedes proponer contenido coherente.
+3. Asegura que la redacción sea humana, coherente y fácil de leer.
+4. Pide que se usen tablas, bullet points y listas (aproximadamente 75% texto, 25% elementos visuales).
+5. Si un resumen visual aporta valor, crea un prompt específico para generar un HTML minimalista y profesional para ser capturado como imagen. Usa la letra Urbanist y los colores #0046C6, #EDE646, #32CFAA, #C2D1F2, #EB0045.
+6. Cumple los criterios del pliego sin mencionarlos explícitamente. Sé elegante en la redacción.
+7. Sé concreto: detalla el quién, cómo, cuándo y cuánto. Propón KPIs realistas si se piden.
+8. Evita la repetición de ideas, el exceso de adjetivos y frases grandilocuentes o clichés.
+9. No menciones el nombre de la empresa repetidamente.
 
-# --- Añádelo a tu bloque de CSS ---
+Este es el subapartado a desarrollar:
+- Apartado Principal: "{apartado_titulo}"
+- Subapartado a Redactar: "{subapartado_titulo}"
+- Indicaciones de la plantilla: "{indicaciones}"
 
-css_profesional = """
-    /* ... tu CSS existente ... */
-
-    .question-box {
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 20px;
-        margin-top: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    }
+REGLAS DE SALIDA: Tu respuesta DEBE ser SÓLO un único objeto JSON válido, con una única clave "plan_de_prompts" cuyo valor sea una lista de objetos. Cada objeto debe seguir esta estructura:
+{{
+  "apartado_referencia": "{apartado_titulo}",
+  "subapartado_referencia": "{subapartado_titulo}",
+  "prompt_id": "Un identificador único (ej: PROMPT_2_1_A, o PROMPT_2_1_1_HTML_VISUAL si es HTML)",
+  "prompt_para_asistente": "La instrucción detallada para el asistente en formato Markdown."
+}}
+Utiliza toda la información de los archivos disponibles (Pliegos, Memorias, Doc. Empresa) para crear tu respuesta en español.
 """
-PROMPT_PLIEGOS = """
-Eres un consultor experto en licitaciones y tu conocimiento se basa ÚNICAMENTE en los archivos que te he proporcionado.
-Tu misión es analizar los Pliegos y proponer una estructura para la memoria técnica que responda a todos los requisitos y criterios de valoración.
-Te daré los pliegos para hacer la memoria técnica. Revisa cuidadosamente todos los que te mando (técnicos y administrativos) para sacar la estructura obligatoria, mínima o recomendada.
-Tu única tarea es convertirlo a un objeto JSON que contenga la estructura del indice y unas indicaciones para que la persona
-que va a redactar la memoria técnica sepa todo lo necesario para poder redactar la memoria técnica con mayor puntuación.
 
-## REGLAS ESTRICTAS:
-1.  Tu respuesta DEBE ser un único objeto JSON válido y nada más. Sin texto introductorio ni marcadores de formato como ```json.
-2.  El objeto JSON DEBE contener dos claves de nivel superior y solo dos: "estructura_memoria" y "matices_desarrollo".
-3.  Para CADA apartado y subapartado, DEBES anteponer su numeración correspondiente (ej: "1. Título", "1.1. Subtítulo").
-    ESTO ES OBLIGATORIO Y DEBE SER EN NÚMEROS NORMALES (1,2,3...) NADA DE LETRAS NI COSAS RARAS.
-4.  La clave "estructura_memoria" contiene la lista de apartados y subapartados como un ÍNDICE.
-    La lista "subapartados" SOLO debe contener los TÍTULOS numerados, NUNCA el texto de las instrucciones.
-5.  Debes coger exactamente el mismo título del apartado o subapartado que existe en los Pliegos, no lo modifiques.
-    Mantenlo aunque esté en otro idioma.
-6.  La clave "matices_desarrollo" desglosa CADA subapartado, asociando su título numerado con las INSTRUCCIONES completas.
-    NO RESUMAS. DEBES CONTAR TODO LO QUE SEPAS DE ELLO.
-    Llena estas indicaciones de mucho contexto útil para que alguien sin experiencia pueda redactar la memoria.
-7.  DEBES INDICAR OBLIGATORIAMENTE LA LONGITUD DE CADA SUBAPARTADO.
-    NO TE LO PUEDES INVENTAR. ESTE DATO ES CLAVE.
-8.  Cada instrucción debe incluir. Si no tiene eso la instrucción no vale:
-    - La longitud exacta de palabras del apartado (o aproximada según lo que se diga en los Pliegos).
-      No pongas en ningún caso "La longitud de este subapartado no está especificada en los documentos proporcionados";
-      propone tú una si no existe. Esta proposición debe ser coherente con el apartado que es y con lo que se valora en los Pliegos.
-    - Una explicación clara de lo que incluirá este apartado.
-    - El objetivo de contenido para que este apartado sume a obtener la excelencia en la memoria técnica.
-    - Cosas que no deben faltar en el apartado.
+# --- 3. MANEJO DE ESTADO DE SESIÓN Y NAVEGACIÓN ---
 
-## MEJORAS AÑADIDAS:
-- Responde SIEMPRE en formato JSON válido y bien estructurado. No incluyas texto fuera del objeto JSON.
-- No inventes información: utiliza únicamente lo que aparezca en los Pliegos.
-- Debes mostrar conocimiento de los Pliegos; no puedes asumir que quien lea las indicaciones ya posee ese conocimiento.
-  Explica todo como si la persona que redacta no supiera nada del tema y necesitara todas las claves para escribir el contenido.
-- Mantén consistencia en la numeración (ejemplo: 1, 1.1, 1.1.1). Nunca mezcles números y letras.
-- Si los Pliegos mencionan tablas, gráficos o anexos obligatorios, añádelos en las indicaciones como recordatorio.
-- Valida que cada subapartado en "estructura_memoria" tenga su correspondiente bloque en "matices_desarrollo".
+# A. Inicialización del Cerebro de la App
+if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
+if 'analisis_resultado' not in st.session_state: st.session_state.analisis_resultado = None
+if 'referencias_archivos' not in st.session_state: st.session_state.referencias_archivos = None
+if 'cuestionario' not in st.session_state: st.session_state.cuestionario = None
+if 'pregunta_idx' not in st.session_state: st.session_state.pregunta_idx = 0
+if 'plan_de_prompts' not in st.session_state: st.session_state.plan_de_prompts = None
+if 'documento_final_bytes' not in st.session_state: st.session_state.documento_final_bytes = None
 
-## EJEMPLO DE ESTRUCTURA DE SALIDA OBLIGATORIA:
-{
-  "estructura_memoria": [
-    {
-      "apartado": "1. Solución Técnica",
-      "subapartados": ["1.1. Metodología", "1.2. Plan de Trabajo"]
-    }
-  ],
-  "matices_desarrollo": [
-    {
-      "apartado": "1. Solución Técnica",
-      "subapartado": "1.1. Metodología",
-      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe describir el objeto de la contratación, que es la prestación de servicios de asesoramiento, mentoría y consultoría a personas emprendedoras autónomas en Galicia..."
-    },
-    {
-      "apartado": "1. Solución Técnica",
-      "subapartado": "1.2. Plan de Trabajo",
-      "indicaciones": "El subapartado debe durar 5 páginas. Este subapartado debe conseguir mostrar ..."
-    }
-  ]
-}
-"""
+# B. Definición de TODAS las Funciones de Navegación
+def ir_al_inicio():
+    keys_to_reset = ['analisis_resultado', 'referencias_archivos', 'cuestionario', 'plan_de_prompts', 'documento_final_bytes']
+    for key in keys_to_reset:
+        st.session_state[key] = None
+    st.session_state.pagina_actual = 'inicio'
+    st.session_state.pregunta_idx = 0
+
+def ir_a_fase0():
+    st.session_state.pagina_actual = 'fase0'
+    keys_to_reset = ['analisis_resultado', 'referencias_archivos', 'cuestionario', 'plan_de_prompts', 'documento_final_bytes']
+    for key in keys_to_reset:
+        st.session_state[key] = None
+    st.session_state.pregunta_idx = 0
+
+def ir_a_fase1():
+    st.session_state.pagina_actual = 'fase1'
+    st.session_state.pregunta_idx = 0
+
+def ir_a_fase2():
+    st.session_state.pagina_actual = 'fase2'
+
+# --- 4. FUNCIONES AUXILIARES ---
 
 def limpiar_respuesta_json(texto_sucio: str) -> str:
     if not isinstance(texto_sucio, str): return ""
-    match_bloque = re.search(r'```(?:json)?\s*(\{.*\})\s*```', texto_sucio, re.DOTALL)
-    if match_bloque: return match_bloque.group(1).strip()
-    match_objeto = re.search(r'\{.*\}', texto_sucio, re.DOTALL)
-    if match_objeto: return match_objeto.group(0).strip()
-    st.warning("No se pudo encontrar un JSON válido en la respuesta de la IA.")
+    match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', texto_sucio, re.DOTALL)
+    if match: return match.group(1).strip()
+    match = re.search(r'\{.*\}', texto_sucio, re.DOTALL)
+    if match: return match.group(0).strip()
     return ""
 
 def extraer_texto_de_archivo(archivo_subido):
-    texto_completo = ""
+    texto = ""
     try:
         if archivo_subido.name.endswith('.pdf'):
             reader = PdfReader(archivo_subido)
-            for page in reader.pages: texto_completo += (page.extract_text() or "") + "\n"
+            for page in reader.pages: texto += (page.extract_text() or "") + "\n"
         elif archivo_subido.name.endswith('.docx'):
             doc = docx.Document(archivo_subido)
-            texto_completo = "\n".join([p.text for p in doc.paragraphs])
-    except Exception as e:
-        st.error(f"Error al leer el archivo '{archivo_subido.name}': {e}")
-    return texto_completo
+            texto = "\n".join([p.text for p in doc.paragraphs])
+    except Exception as e: st.error(f"Error al leer '{archivo_subido.name}': {e}")
+    return texto
 
 def agregar_markdown_a_word(documento, texto_markdown):
-    # ... (Pega aquí tu función completa 'agregar_markdown_a_word') ...
-    # ... Te la pongo aquí por si acaso ...
-    patron_encabezado = re.compile(r'^(#+)\s+(.*)')
-    patron_lista_numerada = re.compile(r'^\s*\d+\.\s+')
-    patron_lista_viñeta = re.compile(r'^\s*[\*\-]\s+')
-    def procesar_linea_con_negritas(parrafo, texto):
+    patron_h = re.compile(r'^(#+)\s+(.*)'); patron_li_num = re.compile(r'^\s*\d+\.\s+'); patron_li_bullet = re.compile(r'^\s*[\*\-]\s+')
+    def proc_negritas(parrafo, texto):
         partes = re.split(r'(\*\*.*?\*\*)', texto)
-        for parte in partes:
-            if parte.startswith('**') and parte.endswith('**'):
-                parrafo.add_run(parte[2:-2]).bold = True
-            elif parte:
-                parrafo.add_run(parte)
+        for p in partes:
+            if p.startswith('**') and p.endswith('**'): parrafo.add_run(p[2:-2]).bold = True
+            elif p: parrafo.add_run(p)
     for linea in texto_markdown.split('\n'):
-        linea_limpia = linea.strip()
-        if not linea_limpia: continue
-        match_encabezado = patron_encabezado.match(linea_limpia)
-        if match_encabezado:
-            nivel = len(match_encabezado.group(1))
-            titulo = match_encabezado.group(2).strip()
-            documento.add_heading(titulo, level=min(nivel, 4))
-            continue
-        if patron_lista_numerada.match(linea_limpia):
-            texto_item = patron_lista_numerada.sub('', linea_limpia)
-            p = documento.add_paragraph(style='List Number')
-            procesar_linea_con_negritas(p, texto_item)
-        elif patron_lista_viñeta.match(linea_limpia):
-            texto_item = patron_lista_viñeta.sub('', linea_limpia)
-            p = documento.add_paragraph(style='List Bullet')
-            procesar_linea_con_negritas(p, texto_item)
-        else:
-            p = documento.add_paragraph()
-            procesar_linea_con_negritas(p, linea_limpia)
+        l = linea.strip()
+        if not l: continue
+        if patron_h.match(l): nivel = len(patron_h.match(l).group(1)); titulo = patron_h.match(l).group(2).strip(); documento.add_heading(titulo, level=min(nivel, 4)); continue
+        if patron_li_num.match(l): proc_negritas(documento.add_paragraph(style='List Number'), patron_li_num.sub('', l))
+        elif patron_li_bullet.match(l): proc_negritas(documento.add_paragraph(style='List Bullet'), patron_li_bullet.sub('', l))
+        else: proc_negritas(documento.add_paragraph(), l)
 
 def es_html(texto):
-    patron_html = re.compile(r'<\s*html|<!DOCTYPE html>|<body|<div|<table', re.IGNORECASE)
-    return bool(patron_html.search(texto))
+    return bool(re.search(r'<\s*html|<!DOCTYPE html>|<body|<div|<table', texto, re.IGNORECASE))
 
 def limpiar_respuesta_html(texto_sucio):
     match = re.search(r'```html\s*(.*?)\s*```', texto_sucio, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return texto_sucio.strip()
+    return match.group(1).strip() if match else texto_sucio.strip()
 
-def html_a_imagen(html_content, output_filename="imagen_html.png"):
+def html_a_imagen(html_content, output_filename="imagen.png"):
     try:
+        path_wkhtmltoimage = '/usr/bin/wkhtmltoimage'
+        config = imgkit.config(wkhtmltoimage=path_wkhtmltoimage)
         options = {'format': 'png', 'encoding': "UTF-8", 'quiet': ''}
-        imgkit.from_string(html_content, output_filename, options=options)
-        if os.path.exists(output_filename):
-            return output_filename
-        return None
+        imgkit.from_string(html_content, output_filename, options=options, config=config)
+        return output_filename if os.path.exists(output_filename) else None
     except Exception as e:
-        st.warning(f"No se pudo generar la imagen desde HTML: {e}")
+        st.warning(f"No se pudo generar imagen desde HTML: {e}. Se omite.")
         return None
-        
+
 def mostrar_resultado_analisis(data):
-    """
-    Muestra la estructura del análisis usando expanders para una vista más limpia.
-    Los apartados principales son visibles y los subapartados están dentro de cada desplegable.
-    """
-    if not data:
-        st.error("No se pudo generar el análisis.")
-        return
-
-    st.subheader("Estructura de Apartados Propuesta")
-    st.markdown("---")
-
-    # Bucle para crear un expander por cada apartado principal
+    if not data: st.error("No se pudo generar el análisis."); return
+    st.subheader("Estructura de Apartados Propuesta"); st.markdown("---")
     for seccion in data.get("estructura_memoria", []):
-        apartado_principal = seccion.get('apartado', 'Sin Título')
-
-        # Usamos st.expander para crear la sección desplegable
-        with st.expander(f"**{apartado_principal}**"):
-            
+        with st.expander(f"**{seccion.get('apartado', 'Sin Título')}**"):
             subapartados = seccion.get("subapartados", [])
-            
-            # Si no hay subapartados, mostramos un mensaje
-            if not subapartados:
-                st.write("*No se encontraron subapartados para esta sección.*")
+            if not subapartados: st.write("*No se encontraron subapartados.*")
             else:
-                # Si hay subapartados, los mostramos como una lista dentro del expander
                 for sub in subapartados:
-                    texto_limpio = sub.lstrip('- ')
-                    
-                    # Contamos los puntos para saber el nivel de anidación (ej: 1.1 vs 1.1.1)
-                    # Esto nos permite crear una sangría visual para la jerarquía.
-                    nivel = texto_limpio.count('.')
-                    sangria = (nivel - 1) * 25 if nivel > 0 else 0 # 0px para nivel 1, 25px para nivel 2, etc.
-                    
-                    st.markdown(
-                        f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", 
-                        unsafe_allow_html=True
-                    )
+                    texto_limpio = sub.lstrip('- '); nivel = texto_limpio.count('.'); sangria = (nivel - 1) * 25 if nivel > 0 else 0
+                    st.markdown(f"<div style='margin-left: {sangria}px;'>•&nbsp; {texto_limpio}</div>", unsafe_allow_html=True)
 
-# --- 3. MANEJO DE ESTADO DE SESIÓN ---
-if 'pagina_actual' not in st.session_state: st.session_state.pagina_actual = 'inicio'
-if 'analisis_resultado' not in st.session_state: st.session_state.analisis_resultado = None
-if 'cuestionario' not in st.session_state: st.session_state.cuestionario = None
-if 'pregunta_idx' not in st.session_state: st.session_state.pregunta_idx = 0
-def ir_a_fase0():
-    st.session_state.pagina_actual = 'fase0'
-    st.session_state.analisis_resultado = None
-    st.session_state.cuestionario = None
-    st.session_state.pregunta_idx = 0
-def ir_al_inicio():
-    st.session_state.pagina_actual = 'inicio'
-    st.session_state.analisis_resultado = None
-    st.session_state.cuestionario = None
-    st.session_state.pregunta_idx = 0
-def ir_a_fase1():
-    st.session_state.pagina_actual = 'fase1'
-    st.session_state.pregunta_idx = 0 # Reiniciar el índice al entrar en la fase
 
-# --- 4. DEFINICIÓN DE LAS PÁGINAS ---
+# --- 5. DEFINICIÓN DE LAS PÁGINAS ---
+
 def pagina_inicio():
     _ , col2, _ = st.columns([1, 2, 1])
     with col2:
@@ -381,7 +250,7 @@ def pagina_inicio():
 def pagina_fase0():
     st.title("Fase 0: Preparación y Análisis")
     if st.session_state.analisis_resultado is None:
-        st.header("Sube aquí tus pliegos y plantilla para empezar el análisis")
+        st.header("Sube tus documentos para iniciar el análisis")
         st.markdown("---")
         tiene_plantilla = st.radio("Plantilla:", ("Sí, voy a subir una", "No, generar solo con los pliegos"), horizontal=True, label_visibility="collapsed")
         plantilla_file = None
@@ -398,7 +267,7 @@ def pagina_fase0():
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        model = genai.GenerativeModel('gemini-1.5-pro')
 
                         prompt_a_usar = PROMPT_PLANTILLA if plantilla_file else PROMPT_PLIEGOS
                         contenido_ia = [prompt_a_usar]
@@ -417,7 +286,10 @@ def pagina_fase0():
                             referencia = genai.upload_file(path=temp_path, display_name=pliego.name)
                             referencias_pliegos.append(referencia)
                             temp_path.unlink()
-                        if referencias_pliegos: contenido_ia.extend(referencias_pliegos)
+                        
+                        if referencias_pliegos: 
+                            contenido_ia.extend(referencias_pliegos)
+                            st.session_state.referencias_archivos = referencias_pliegos
                         
                         st.info("La IA está generando la estructura completa. Por favor, ten paciencia...")
                         generation_config = genai.GenerationConfig(response_mime_type="application/json", max_output_tokens=8192)
@@ -433,135 +305,85 @@ def pagina_fase0():
                             if json_limpio_str:
                                 st.session_state.analisis_resultado = json.loads(json_limpio_str)
                                 st.success("✅ ¡Análisis completo!")
-                                time.sleep(2)
-                                st.rerun()
-                            else:
-                                st.error("❌ La IA devolvió una respuesta, pero estaba incompleta o no era un JSON válido.")
-                        else:
-                            st.error(f"❌ La IA no generó una respuesta válida. Detalles: {response.prompt_feedback}")
-                    except Exception as e:
-                        st.error(f"Ocurrió un error inesperado durante el análisis: {e}")
+                                time.sleep(2); st.rerun()
+                            else: st.error("❌ La IA devolvió una respuesta, pero estaba incompleta o no era un JSON válido.")
+                        else: st.error(f"❌ La IA no generó una respuesta válida. Detalles: {response.prompt_feedback}")
+                    except Exception as e: st.error(f"Ocurrió un error inesperado durante el análisis: {e}")
     else:
         st.header("📑 Estructura Sugerida del Análisis")
         mostrar_resultado_analisis(st.session_state.analisis_resultado)
         st.markdown("---")
         col1, col2, col3 = st.columns([1,2,1])
-        with col2:
-            st.button("Continuar a la Fase 1", on_click=ir_a_fase1, use_container_width=True)
-
+        with col2: st.button("Continuar a la Fase 1", on_click=ir_a_fase1, use_container_width=True)
     st.button("Volver al Inicio", on_click=ir_al_inicio)
-    
+
 def pagina_fase1():
     st.title("Fase 1: Recopilación de Información")
-
-    # Si aún no hemos generado el cuestionario, mostramos el botón para hacerlo
     if st.session_state.cuestionario is None:
-        st.info("El siguiente paso es generar un cuestionario basado en la estructura analizada. La IA creará preguntas específicas para recopilar la información necesaria del cliente.")
-        
+        st.info("El siguiente paso es generar un cuestionario basado en la estructura analizada para recopilar la información necesaria del cliente.")
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
             if st.button("Generar Cuestionario Estratégico", use_container_width=True):
                 with st.spinner("La IA está preparando las preguntas..."):
                     try:
-                        api_key = st.secrets["GEMINI_API_KEY"]
-                        genai.configure(api_key=api_key)
+                        api_key = st.secrets["GEMINI_API_KEY"]; genai.configure(api_key=api_key)
                         model = genai.GenerativeModel('gemini-1.5-flash')
-
-                        analisis_previo = st.session_state.analisis_resultado
-                        contenido_ia = [
-                            PROMPT_GENERAR_LISTA_PREGUNTAS,
-                            "Aquí está la estructura y los matices generados previamente:",
-                            json.dumps(analisis_previo)
-                        ]
-
-                        response = model.generate_content(
-                            contenido_ia,
-                            generation_config=genai.GenerationConfig(response_mime_type="application/json")
-                        )
-
+                        contenido_ia = [PROMPT_GENERAR_LISTA_PREGUNTAS, "Estructura y matices generados:", json.dumps(st.session_state.analisis_resultado)]
+                        response = model.generate_content(contenido_ia, generation_config=genai.GenerationConfig(response_mime_type="application/json"))
                         json_limpio_str = limpiar_respuesta_json(response.text)
                         if json_limpio_str:
                             cuestionario_data = json.loads(json_limpio_str).get("cuestionario", [])
                             for q in cuestionario_data: q['respuesta'] = ''
                             st.session_state.cuestionario = cuestionario_data
-                            st.session_state.pregunta_idx = 0
-                            st.rerun()
-                        else:
-                            st.error("La IA no pudo generar el cuestionario. Inténtalo de nuevo.")
-                    except Exception as e:
-                        st.error(f"Ocurrió un error: {e}")
-    
-    # Si ya tenemos el cuestionario, mostramos la pregunta actual
+                            st.session_state.pregunta_idx = 0; st.rerun()
+                        else: st.error("La IA no pudo generar el cuestionario. Inténtalo de nuevo.")
+                    except Exception as e: st.error(f"Ocurrió un error: {e}")
     else:
-        cuestionario = st.session_state.cuestionario
-        idx = st.session_state.pregunta_idx
-        pregunta_actual = cuestionario[idx]
-        total_preguntas = len(cuestionario)
-
+        cuestionario = st.session_state.cuestionario; idx = st.session_state.pregunta_idx
+        pregunta_actual = cuestionario[idx]; total_preguntas = len(cuestionario)
         st.progress((idx + 1) / total_preguntas, text=f"Pregunta {idx + 1} de {total_preguntas}")
-
         with st.container():
             st.markdown('<div class="question-box">', unsafe_allow_html=True)
             st.subheader(f"Referente a: {pregunta_actual['apartado_referencia']}")
             st.write(pregunta_actual['pregunta'])
             respuesta = st.text_area("Respuesta del cliente:", value=pregunta_actual['respuesta'], height=200, key=f"respuesta_{idx}")
             st.markdown('</div>', unsafe_allow_html=True)
-
         st.session_state.cuestionario[idx]['respuesta'] = respuesta
-
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            if idx > 0:
-                if st.button("⬅️ Anterior"):
-                    st.session_state.pregunta_idx -= 1
-                    st.rerun()
+            if idx > 0 and st.button("⬅️ Anterior"):
+                st.session_state.pregunta_idx -= 1; st.rerun()
         with col3:
             if idx < total_preguntas - 1:
                 if st.button("Siguiente ➡️"):
-                    st.session_state.pregunta_idx += 1
-                    st.rerun()
+                    st.session_state.pregunta_idx += 1; st.rerun()
             else:
-                # --- INICIO DE LA CORRECCIÓN ---
-                # Quitamos el 'if' y dejamos solo el botón con el callback 'on_click'
-                st.button(
-                    "✅ Finalizar y Continuar a la Redacción",
-                    on_click=ir_a_fase2
-                )
-                # --- FIN DE LA CORRECCIÓN ---
-    
+                st.button("✅ Finalizar y Continuar a la Redacción", on_click=ir_a_fase2)
     st.button("Volver al Inicio", on_click=ir_al_inicio)
 
 def pagina_fase2():
     st.title("Fase Final: Redacción del Documento")
-
     if st.session_state.documento_final_bytes is None:
-        st.info("La IA está lista para redactar la memoria técnica completa. Utilizará la estructura, los pliegos y tus respuestas para generar cada sección del documento.")
-        st.warning("Este proceso es intensivo y puede tardar varios minutos. Por favor, no cierres esta ventana.")
-
+        st.info("La IA redactará la memoria técnica completa usando la estructura, los pliegos y tus respuestas.")
+        st.warning("Este proceso puede tardar varios minutos. No cierres esta ventana.")
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
             if st.button("✍️ Iniciar Redacción Automática", use_container_width=True):
-                if 'analisis_resultado' not in st.session_state or 'referencias_archivos' not in st.session_state:
+                if not st.session_state.get('analisis_resultado') or not st.session_state.get('referencias_archivos'):
                     st.error("Faltan datos de la Fase 0. Por favor, reinicia el proceso."); st.stop()
-
-                # --- 1. GENERACIÓN DEL PLAN DE CONTENIDOS ---
+                
                 with st.spinner("Paso 1 de 2: Generando plan de contenidos..."):
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]; genai.configure(api_key=api_key)
                         model = genai.GenerativeModel('gemini-1.5-pro')
-                        
                         analisis = st.session_state.analisis_resultado
                         referencias_archivos = st.session_state.referencias_archivos
                         respuestas_cliente = st.session_state.get('cuestionario', [])
                         contexto_cliente = "\n\n--- CONTEXTO ADICIONAL DEL CLIENTE ---\n"
-                        for item in respuestas_cliente:
-                            contexto_cliente += f"Para '{item['apartado_referencia']}', a la pregunta '{item['pregunta']}', el cliente respondió: '{item['respuesta']}'\n"
-
+                        for item in respuestas_cliente: contexto_cliente += f"Para '{item['apartado_referencia']}', a la pregunta '{item['pregunta']}', el cliente respondió: '{item['respuesta']}'\n"
                         planes_de_accion = []
-                        subapartados_a_procesar = analisis['matices_desarrollo']
-                        
-                        for subapartado_info in subapartados_a_procesar:
-                            prompt_plan = PROMPT_DESARROLLO.format( # <-- Necesitas tu PROMPT_DESARROLLO
+                        for subapartado_info in analisis['matices_desarrollo']:
+                            prompt_plan = PROMPT_DESARROLLO.format(
                                 apartado_titulo=subapartado_info.get("apartado", ""),
                                 subapartado_titulo=subapartado_info.get("subapartado", ""),
                                 indicaciones=subapartado_info.get("indicaciones", "")
@@ -573,29 +395,20 @@ def pagina_fase2():
                                 request_options={"timeout": 600}
                             )
                             json_plan = limpiar_respuesta_json(response_plan.text)
-                            if json_plan:
-                                planes_de_accion.extend(json.loads(json_plan).get("plan_de_prompts", []))
-                        
+                            if json_plan: planes_de_accion.extend(json.loads(json_plan).get("plan_de_prompts", []))
                         st.session_state.plan_de_prompts = {"plan_de_prompts": planes_de_accion}
-                    except Exception as e:
-                        st.error(f"Error generando el plan de contenidos: {e}"); st.stop()
+                    except Exception as e: st.error(f"Error generando el plan de contenidos: {e}"); st.stop()
 
-                # --- 2. ENSAMBLAJE DEL DOCUMENTO WORD ---
                 plan_de_prompts = st.session_state.plan_de_prompts.get("plan_de_prompts", [])
                 if not plan_de_prompts: st.error("No se pudo generar un plan de contenidos válido."); st.stop()
                 
-                status_placeholder = st.empty()
-                progress_bar = st.progress(0)
-                documento = docx.Document()
-                chat_redaccion = model.start_chat()
-
+                status_placeholder = st.empty(); progress_bar = st.progress(0)
+                documento = docx.Document(); chat_redaccion = model.start_chat()
                 ultimo_apartado_escrito = ""; ultimo_subapartado_escrito = ""
 
                 for i, tarea in enumerate(plan_de_prompts):
-                    apartado = tarea.get("apartado_referencia", "")
-                    subapartado = tarea.get("subapartado_referencia", "")
+                    apartado = tarea.get("apartado_referencia", ""); subapartado = tarea.get("subapartado_referencia", "")
                     prompt_actual = tarea.get("prompt_para_asistente")
-                    
                     status_placeholder.info(f"Paso 2 de 2: Redactando '{subapartado}' ({i+1}/{len(plan_de_prompts)})")
                     
                     if apartado and apartado != ultimo_apartado_escrito:
@@ -606,33 +419,22 @@ def pagina_fase2():
                         documento.add_heading(subapartado, level=2)
                         ultimo_subapartado_escrito = subapartado
 
-                    response_redaccion = chat_redaccion.send_message(prompt_actual)
-                    respuesta_ia = response_redaccion.text
-
+                    response_redaccion = chat_redaccion.send_message(prompt_actual); respuesta_ia = response_redaccion.text
                     if es_html(respuesta_ia):
                         html_limpio = limpiar_respuesta_html(respuesta_ia)
                         nombre_img = f"temp_image_{i}.png"
                         image_file = html_a_imagen(html_limpio, output_filename=nombre_img)
-                        if image_file:
-                            documento.add_picture(image_file, width=Inches(6.0))
-                            os.remove(image_file)
-                    else:
-                        agregar_markdown_a_word(documento, respuesta_ia)
-                    
+                        if image_file: documento.add_picture(image_file, width=Inches(6.0)); os.remove(image_file)
+                    else: agregar_markdown_a_word(documento, respuesta_ia)
                     progress_bar.progress((i + 1) / len(plan_de_prompts))
                 
-                doc_io = io.BytesIO()
-                documento.save(doc_io)
+                doc_io = io.BytesIO(); documento.save(doc_io)
                 st.session_state.documento_final_bytes = doc_io.getvalue()
-                
                 status_placeholder.success("✅ ¡Documento redactado con éxito!")
-                time.sleep(2)
-                st.rerun()
-
+                time.sleep(2); st.rerun()
     else:
         st.header("🎉 ¡Tu Memoria Técnica está Lista!")
         st.info("El documento ha sido generado. Haz clic en el botón de abajo para descargarlo en formato .docx.")
-        
         col1, col2, col3 = st.columns([1,2,1])
         with col2:
             st.download_button(
@@ -642,10 +444,9 @@ def pagina_fase2():
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 use_container_width=True
             )
-
     st.button("Empezar de Nuevo", on_click=ir_al_inicio)
 
-# --- 5. ROUTER PRINCIPAL DE LA APLICACIÓN ---
+# --- 6. ROUTER PRINCIPAL ---
 if st.session_state.pagina_actual == 'inicio':
     pagina_inicio()
 elif st.session_state.pagina_actual == 'fase0':
