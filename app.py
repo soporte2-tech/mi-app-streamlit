@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image
+import os
 
 # --- CSS PERSONALIZADO ---
 def local_css(file_name):
@@ -52,25 +52,26 @@ css_content = """
 st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
 # --- CABECERA CON LOGO Y TÍTULO ---
-st.markdown("""
-<div class="title-container">
-    <div style="flex-grow: 1;">
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    st.markdown("""
         <h1 style="color: #004d99; font-weight: 700; font-size: 2.5em;">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>
-    </div>
-    <div>
-        <!-- Usaremos el logo de ejemplo hasta que el usuario suba el suyo -->
-        <img src="https://placehold.co/150x75/004d99/ffffff?text=DPI+Estrategia" alt="Logo de la empresa" class="logo-img">
-    </div>
-</div>
-<hr style="border: 2px solid #004d99; margin: 20px 0;">
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+with col2:
+    try:
+        # La forma correcta de cargar una imagen localmente en Streamlit
+        st.image('imagen.png', width=150)
+    except Exception as e:
+        st.error(f"Error al cargar la imagen: {e}")
+        st.info("Por favor, asegúrate de que el archivo 'imagen.png' esté en el repositorio de GitHub, en la misma carpeta que 'app.py'.")
+
+st.markdown("""<hr style="border: 2px solid #004d99; margin: 20px 0;">""", unsafe_allow_html=True)
+
 
 # --- CONTENIDO DE LA PÁGINA ---
-# Este es un diseño profesional y limpio.
 st.subheader("¡Bienvenido al asistente de memorias técnicas!")
 st.write("Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas. Usa el menú lateral para navegar por las diferentes funcionalidades.")
-
-st.info("💡 **Consejo:** Una vez que subas el archivo `imagen.png` a GitHub, el logo de ejemplo se reemplazará automáticamente.")
 
 st.markdown("---")
 
