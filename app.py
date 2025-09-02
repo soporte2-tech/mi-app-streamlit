@@ -267,6 +267,7 @@ def pagina_fase0():
         st.header("Sube aquí tus pliegos y plantilla para empezar el análisis")
         st.markdown("---")
 
+        # ... (La parte de subir archivos se mantiene igual) ...
         tiene_plantilla = st.radio(
             "¿Dispones de una plantilla de memoria técnica?",
             ("Sí, voy a subir una", "No, generar estructura solo con los pliegos"),
@@ -296,7 +297,11 @@ def pagina_fase0():
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        
+                        # --- INICIO DE CAMBIOS ---
+                        # Opción 1: Usar el modelo Pro
+                        model = genai.GenerativeModel('gemini-1.5-pro') 
+                        # --- FIN DE CAMBIOS ---
 
                         prompt_a_usar = PROMPT_PLANTILLA if plantilla_file else PROMPT_PLIEGOS
                         contenido_ia = [prompt_a_usar]
@@ -323,8 +328,16 @@ def pagina_fase0():
                         if referencias_pliegos:
                              contenido_ia.extend(referencias_pliegos)
                         
-                        st.info("Generando estructura... La IA está trabajando.")
-                        generation_config = genai.GenerationConfig(response_mime_type="application/json")
+                        st.info("Generando estructura... La IA está trabajando. Este proceso es largo, por favor ten paciencia.")
+                        
+                        # --- INICIO DE CAMBIOS ---
+                        # Opción 2: Permitir más tokens de salida
+                        generation_config = genai.GenerationConfig(
+                            response_mime_type="application/json",
+                            max_output_tokens=8192 
+                        )
+                        # --- FIN DE CAMBIOS ---
+
                         response = model.generate_content(contenido_ia, generation_config=generation_config)
 
                         if response and hasattr(response, 'text') and response.text:
@@ -335,7 +348,7 @@ def pagina_fase0():
                                 time.sleep(2)
                                 st.rerun()
                             else:
-                                st.error("❌ La IA devolvió una respuesta, pero no se pudo extraer el JSON.")
+                                st.error("❌ La IA devolvió una respuesta, pero no se pudo extraer el JSON. Posiblemente la respuesta estaba incompleta.")
                         else:
                             st.error(f"❌ La IA no generó una respuesta válida. Detalles: {response.prompt_feedback}")
 
