@@ -16,68 +16,102 @@ css_content = """
         font-family: 'Montserrat', sans-serif;
         background-color: #f0f2f6;
         color: #333;
+        margin: 0;
+        padding: 0;
     }
 
     .stApp {
         background-color: #f0f2f6;
     }
-
+    
     .stApp > header {
-        background-color: #ffffff;
-        padding: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
+        display: none; /* Oculta la cabecera por defecto de Streamlit */
+    }
+
+    .main-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        padding: 20px;
+        box-sizing: border-box;
+        text-align: center;
+    }
+
+    .header-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
         margin-bottom: 20px;
     }
 
-    .title-container {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        padding: 20px;
+    .title {
+        color: #004d99;
+        font-weight: 700;
+        font-size: 2.2em;
+        margin: 0;
     }
 
     .logo-img {
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 150px;
+        height: auto;
+    }
+    
+    .stButton>button {
+        background-color: #004d99;
+        color: white;
+        font-weight: 600;
+        padding: 10px 24px;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.3s ease;
     }
 
-    .st-emotion-cache-1jmveo6 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .stButton>button:hover {
+        background-color: #003366;
+    }
+
+    .stInfo {
+        background-color: #e6f7ff;
+        border-left: 5px solid #007bff;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 15px;
+        text-align: left;
     }
 """
 
 st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
 
-# --- CABECERA CON LOGO Y TÍTULO ---
-col1, col2 = st.columns([3, 1])
+# --- CONTENEDOR PRINCIPAL ---
+with st.container():
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-with col1:
-    st.markdown("""
-        <h1 style="color: #004d99; font-weight: 700; font-size: 2.5em;">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>
-    """, unsafe_allow_html=True)
-with col2:
+    # --- CABECERA CON LOGO Y TÍTULO ---
+    st.markdown('<div class="header-container">', unsafe_allow_html=True)
     try:
-        # La forma correcta de cargar una imagen localmente en Streamlit
+        # Intenta cargar la imagen desde la ruta relativa
         st.image('imagen.png', width=150)
     except Exception as e:
-        st.error(f"Error al cargar la imagen: {e}")
-        st.info("Por favor, asegúrate de que el archivo 'imagen.png' esté en el repositorio de GitHub, en la misma carpeta que 'app.py'.")
+        st.info("💡 Por favor, sube el archivo 'imagen.png' a tu repositorio de GitHub para que el logo aparezca.")
 
-st.markdown("""<hr style="border: 2px solid #004d99; margin: 20px 0;">""", unsafe_allow_html=True)
+    st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) # Cierre del header-container
 
+    # --- DESCRIPCIÓN ---
+    st.markdown("""
+        <p style="text-align: center; color: #555; font-size: 1.1em; max-width: 600px;">
+            Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.<br>
+            Haz clic en "Comenzar" para iniciar el proceso.
+        </p>
+    """, unsafe_allow_html=True)
 
-# --- CONTENIDO DE LA PÁGINA ---
-st.subheader("¡Bienvenido al asistente de memorias técnicas!")
-st.write("Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas. Usa el menú lateral para navegar por las diferentes funcionalidades.")
+    # --- BOTÓN DE COMENZAR ---
+    st.button("Comenzar")
 
-st.markdown("---")
-
-st.markdown("""
-### ¿Qué puedes esperar?
-- **Agilidad**: Reduce el tiempo de redacción de documentos complejos.
-- **Precisión**: Genera contenido basado en datos y directrices predefinidas.
-- **Colaboración**: Permite un flujo de trabajo más eficiente con tu equipo.
-""")
+    st.markdown('</div>', unsafe_allow_html=True) # Cierre del main-container
