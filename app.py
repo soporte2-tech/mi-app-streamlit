@@ -3,8 +3,7 @@ import streamlit as st
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide")
 
-# --- CSS FINAL Y DEFINITIVO ---
-# Este CSS es más específico para asegurar que se aplique correctamente.
+# --- CSS DEFINITIVO ---
 css_final = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
@@ -19,40 +18,32 @@ css_final = """
         font-family: 'Montserrat', sans-serif;
     }
     
-    /* LA CLAVE: Aplicamos el estilo de la tarjeta al contenedor de Streamlit */
-    /* Este selector es robusto y apunta al contenedor que creamos con st.container */
+    /* LA CLAVE: Estilo completo para la tarjeta */
     [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
-        background-color: white; /* 1. Fondo blanco */
+        background-color: white; /* 1. FONDO BLANCO */
+        border: none;
         padding: 40px;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         margin-top: 4rem;
-        border: none; /* Quitamos el borde gris por defecto del contenedor */
-        
-        /* 2. Centramos todo el contenido verticalmente */
-        display: flex;
-        flex-direction: column;
-        align-items: center; /* ESTO CENTRA TODO HORIZONTALMENTE */
-        gap: 20px; /* Espacio uniforme entre elementos */
+        text-align: center; /* 2. LA MAGIA: CENTRA TODO EL CONTENIDO */
     }
     
-    /* Estilos para el texto y el botón (sin cambios) */
+    /* Estilos para el texto y el botón */
     .title {
         color: #1E3A5F;
         font-weight: 700;
         font-size: clamp(1.8rem, 4vw, 2.5rem);
         letter-spacing: -1px;
         line-height: 1.2;
-        margin: 0;
-        text-align: center;
+        margin: 20px 0;
     }
     
     .description {
         color: #555;
         font-size: clamp(1rem, 2.5vw, 1.1rem);
         line-height: 1.6;
-        margin: 0;
-        text-align: center;
+        margin-bottom: 30px;
     }
 
     .stButton>button {
@@ -79,8 +70,8 @@ st.markdown(f"<style>{css_final}</style>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # Creamos un contenedor nativo de Streamlit. El CSS de arriba lo convertirá
-    # en nuestra tarjeta blanca y centrará todo su contenido.
+    # Creamos el contenedor nativo. El CSS de arriba le dará el fondo blanco
+    # y centrará todo lo que pongamos dentro.
     with st.container(border=True):
 
         # LOGO
