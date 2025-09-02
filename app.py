@@ -3,7 +3,7 @@ import streamlit as st
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide")
 
-# --- CSS DEFINITIVO ---
+# --- CSS DEFINITIVO Y CORRECTO ---
 css_final = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 
@@ -18,15 +18,21 @@ css_final = """
         font-family: 'Montserrat', sans-serif;
     }
     
-    /* LA CLAVE: Estilo completo para la tarjeta */
+    /* LA CLAVE: Estilo completo para la tarjeta con CENTRADO FLEXBOX */
     [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
-        background-color: white; /* 1. FONDO BLANCO */
+        /* Estilo visual de la tarjeta */
+        background-color: white;
         border: none;
         padding: 40px;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         margin-top: 4rem;
-        text-align: center; /* 2. LA MAGIA: CENTRA TODO EL CONTENIDO */
+        
+        /* LA LÓGICA DE CENTRADO DEFINITIVA */
+        display: flex;
+        flex-direction: column;  /* Apila los elementos verticalmente */
+        align-items: center;     /* Centra todo horizontalmente */
+        gap: 20px;               /* Espacio uniforme entre elementos */
     }
     
     /* Estilos para el texto y el botón */
@@ -36,14 +42,16 @@ css_final = """
         font-size: clamp(1.8rem, 4vw, 2.5rem);
         letter-spacing: -1px;
         line-height: 1.2;
-        margin: 20px 0;
+        margin: 0;
+        text-align: center;
     }
     
     .description {
         color: #555;
         font-size: clamp(1rem, 2.5vw, 1.1rem);
         line-height: 1.6;
-        margin-bottom: 30px;
+        margin: 0;
+        text-align: center;
     }
 
     .stButton>button {
@@ -70,17 +78,14 @@ st.markdown(f"<style>{css_final}</style>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # Creamos el contenedor nativo. El CSS de arriba le dará el fondo blanco
-    # y centrará todo lo que pongamos dentro.
+    # Creamos el contenedor nativo. El CSS de arriba lo convierte en la tarjeta
+    # y centra TODO su contenido gracias a Flexbox.
     with st.container(border=True):
 
-        # LOGO
         st.image('imagen.png', width=150)
 
-        # TÍTULO
         st.markdown('<h1 class="title">AUTOMATIZACIÓN DE MEMORIAS TÉCNICAS</h1>', unsafe_allow_html=True)
 
-        # DESCRIPCIÓN
         st.markdown("""
             <p class="description">
                 Esta herramienta está diseñada para simplificar y acelerar la creación de tus memorias técnicas.
@@ -89,6 +94,5 @@ with col2:
             </p>
         """, unsafe_allow_html=True)
 
-        # BOTÓN
         if st.button("Comenzar"):
             st.success("¡Proceso iniciado!")
